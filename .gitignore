@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Compiled output and coverage
+dist/
+coverage/
+.nyc_output/
+/docs/swagger.json
+
+# Local environment variables (keep the example template)
+.env
+.env.*
+!.env.example
+
+# VS Code and other IDE settings
+**/.vscode/
+**/.idea/
+*.iml
+
+# Logs, diagnostics, and local output
+*.log
+nsc-out.txt
+app-output.txt
+compile.txt
+output.txt
+runtime.txt
+runtime-output.txt
+tsc.txt
+tsc-output.txt
+
+# Temporary files and backups
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# TypeScript incremental build cache
+*.tsbuildinfo
