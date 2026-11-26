@@ -1,0 +1,34 @@
+name: ebloods
+description: "eBlood - One Drop. One Hope. One Life."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^3.5.0
+  go_router: ^18.1.4
+  dio: ^5.11.1
+  google_fonts: ^9.0.0
+  flutter_svg: ^2.5.0
+  shared_preferences: ^2.5.6
+  intl: ^0.20.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
