@@ -15,6 +15,8 @@ CREATE TABLE users (
     last_donated_at TIMESTAMP,
     latitude NUMBER(10, 6),
     longitude NUMBER(10, 6),
+    blood_group VARCHAR2(5) CHECK (blood_group IN ('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-')),
+    is_available NUMBER(1) DEFAULT 0 NOT NULL CHECK (is_available IN (0, 1)),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -90,7 +92,7 @@ CREATE INDEX idx_inventory_bank ON blood_inventory(bank_id);
 CREATE TABLE blood_requests (
     request_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id NUMBER NOT NULL,
-    hospital_id NUMBER NOT NULL,
+    hospital_id NUMBER,
     blood_group VARCHAR2(5) NOT NULL CHECK (blood_group IN ('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-')),
     component VARCHAR2(20) DEFAULT 'whole_blood' NOT NULL CHECK (component IN ('whole_blood', 'plasma', 'platelets', 'rbc')),
     units_needed NUMBER DEFAULT 1 NOT NULL,

@@ -9,6 +9,7 @@ import { toCamelCase } from "../database/mapper";
 import env, { env as cfg } from "../config";
 import { createAuditLog } from "../middleware/audit";
 import { authenticate } from "../middleware/auth";
+import { sendRegistrationEmail } from "../services/registration-email";
 
 // JWT config accessor (config.ts default-exports the normalized env object)
 const getJwtConfig = () => ({
@@ -24,6 +25,7 @@ const registerSchema = z.object({
   email: z.string().email("Invalid email").optional(),
   username: z.string().min(1).optional(),
   phone: z.string().regex(/^9[78]\d{8}$/).optional(),
+  bloodGroup: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]).optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["patient", "donor", "bloodbank_staff", "hospital_staff", "ngo", "admin"]),
 }).refine(
@@ -161,14 +163,15 @@ router.post("/register", async (req: Request, res: Response) => {
       const finalUsername = isPhone ? `user_${identifier.slice(-4)}` : identifier.split("@")[0];
 
       await conn.execute(
-        `INSERT INTO users (username, email, phone, password_hash, role)
-         VALUES (:username, :email, :phone, :password_hash, :role)`,
+        `INSERT INTO users (username, email, phone, password_hash, role, blood_group)
+         VALUES (:username, :email, :phone, :password_hash, :role, :blood_group)`,
         {
           username: finalUsername,
           email: isPhone ? null : identifier,
           phone: isPhone ? identifier : null,
           password_hash: passwordHash,
           role: role,
+          blood_group: result.data.bloodGroup ?? null,
         },
         { autoCommit: false }
       );
@@ -209,6 +212,19 @@ router.post("/register", async (req: Request, res: Response) => {
 
     const { userId, refreshToken } = transactionResult.result!;
     const accessToken = signAccessToken(userId);
+
+    if (!isPhone) {
+      void sendRegistrationEmail({
+        recipientEmail: identifier,
+        userName: identifier.split("@")[0],
+        bloodGroup: result.data.bloodGroup,
+      }).catch((error: unknown) => {
+        console.error(
+          "Registration email delivery failed:",
+          error instanceof Error ? error.message : "Unknown email error"
+        );
+      });
+    }
 
     // Return response (exclude password hash)
     const userResponse = {

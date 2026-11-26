@@ -16,6 +16,7 @@ const updateProfileSchema = z.object({
     .string()
     .regex(/^9[78]\d{8}$/, "Nepali phone must start with 97 or 98")
     .optional(),
+  blood_group: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]).optional(),
 });
 
 const updateLocationSchema = z.object({
@@ -24,7 +25,7 @@ const updateLocationSchema = z.object({
 });
 
 const updateDonorAvailabilitySchema = z.object({
-  is_available: z.boolean().optional(),
+  is_available: z.boolean(),
 });
 
 // GET /me - Get current user profile
@@ -41,7 +42,7 @@ router.get("/", async (req: Request, res: Response) => {
     }
 
     const user = await runQueryOne(
-      `SELECT user_id, username, email, phone, role, is_active, last_donated_at, created_at
+      `SELECT user_id, username, email, phone, role, is_active, is_available, blood_group, last_donated_at, created_at
        FROM users WHERE user_id = :1`,
       [userId]
     );
@@ -61,6 +62,8 @@ router.get("/", async (req: Request, res: Response) => {
       phone: string | null;
       role: string;
       isActive: number;
+      isAvailable: number;
+      bloodGroup: string | null;
       lastDonatedAt: string | null;
       createdAt: string;
     };
@@ -72,6 +75,8 @@ router.get("/", async (req: Request, res: Response) => {
       phone: camelUser.phone,
       role: camelUser.role,
       is_active: camelUser.isActive,
+      is_available: camelUser.isAvailable,
+      blood_group: camelUser.bloodGroup,
       last_donated_at: camelUser.lastDonatedAt,
       created_at: camelUser.createdAt,
     };
@@ -118,6 +123,13 @@ router.patch("/", async (req: Request, res: Response) => {
     }
 
     const updates = result.data;
+    if (updates.blood_group && (req as any).user?.role !== "donor") {
+      return res.status(403).json({
+        success: false,
+        error: { code: "FORBIDDEN", message: "Only donor accounts can update blood group." },
+        data: null,
+      });
+    }
     const updateFields: string[] = [];
     const binds: any[] = [];
     let bindIndex = 1;
@@ -140,6 +152,12 @@ router.patch("/", async (req: Request, res: Response) => {
       bindIndex++;
     }
 
+    if (updates.blood_group !== undefined) {
+      updateFields.push(`blood_group = :${bindIndex}`);
+      binds.push(updates.blood_group);
+      bindIndex++;
+    }
+
     if (updateFields.length === 0) {
       return res.status(400).json({
         success: false,
@@ -150,7 +168,7 @@ router.patch("/", async (req: Request, res: Response) => {
 
     updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
 
-    const query = `UPDATE users SET ${updateFields.join(", ")} WHERE user_id = :${bindIndex}`;
+    const query = `UPDATE users SET ${updateFields.join(", ")} WHERE user_id = :${bindIndex} RETURNING user_id`;
     binds.push(userId);
 
     const updated: any = await runQueryOne(query, binds);
@@ -305,9 +323,20 @@ router.patch("/donor-availability", async (req: Request, res: Response) => {
 
     const { is_available } = result.data;
 
-    // Update donor availability - we'll store this as a note or in a separate table
-    // For now, we'll just log it and return success
-    // TODO: Store in donor_availability table or update users table
+    const updated = await runQueryOne(
+      `UPDATE users
+       SET is_available = :1, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = :2 AND role = 'donor'
+       RETURNING user_id`,
+      [is_available ? 1 : 0, userId]
+    );
+    if (!updated) {
+      return res.status(403).json({
+        success: false,
+        error: { code: "FORBIDDEN", message: "Only donor accounts can update donor availability." },
+        data: null,
+      });
+    }
 
     // Log audit
     await createAuditLog(userId, "donor_availability_update", "users", userId, {

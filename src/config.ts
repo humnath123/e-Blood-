@@ -1,6 +1,19 @@
 import "dotenv/config";
 import { z } from "zod";
 
+const optionalSetting = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional()
+);
+const optionalMailFrom = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional().refine((value) => {
+    if (!value) return true;
+    const address = value.match(/<([^<>]+)>$/)?.[1] ?? value;
+    return z.string().email().safeParse(address.trim()).success;
+  }, "MAIL_FROM must be an email address or a display name with an email address")
+);
+
 // Environment schema validation
 const envSchema = z.object({
   ORACLE_USER: z.string().min(1).optional(),
@@ -23,6 +36,21 @@ const envSchema = z.object({
 
   CORS_ORIGINS: z.string().default("*"),
   PORT: z.coerce.number().default(3000),
+  SMTP_HOST: optionalSetting,
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_SECURE: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  SMTP_USER: optionalSetting,
+  SMTP_PASSWORD: optionalSetting,
+  MAIL_FROM: optionalMailFrom,
+  APP_BASE_URL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional().refine((value) => {
+      if (!value) return true;
+      return ["http:", "https:"].includes(new URL(value).protocol);
+    }, "APP_BASE_URL must use HTTP or HTTPS")
+  ),
+  BLOOD_ALERT_RADIUS_KM: z.coerce.number().min(0.1).max(500).default(50),
+  BLOOD_ALERT_MAX_RECIPIENTS: z.coerce.number().int().min(1).max(100).default(25),
 });
 
 // Type inferred from the schema

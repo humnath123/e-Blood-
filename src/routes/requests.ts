@@ -1,9 +1,9 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import * as oracledb from "oracledb";
 import { runQuery, runQueryOne } from "../database/pool";
 import { toCamelCase } from "../database/mapper";
 import { createAuditLog } from "../middleware/audit";
+import { notifyNearbyBloodResources } from "../services/blood-alerts";
 
 const router = Router();
 
@@ -18,7 +18,13 @@ const createRequestSchema = z.object({
   component: z.enum(['whole_blood', 'plasma', 'platelets', 'rbc']).default('whole_blood'),
   units_needed: z.number().min(1).default(1),
   urgency: z.enum(['normal', 'urgent', 'critical']).default('normal'),
-});
+  hospital_id: z.number().int().positive().nullable().optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+}).refine(
+  (request) => (request.latitude === undefined) === (request.longitude === undefined),
+  "latitude and longitude must be provided together"
+);
 
 // POST /api/v1/requests - Create new blood request
 router.post("/", async (req: Request, res: Response) => {
@@ -46,27 +52,13 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
 
-    const { blood_group, component, units_needed, urgency } = result.data;
-
-    // Create new blood request (hospital_id is optional; FK allows NULL)
-    await runQuery(
-      `INSERT INTO blood_requests (user_id, hospital_id, blood_group, component, units_needed, urgency, status)
-       VALUES (:1, :2, :3, :4, :5, :6, 'open')`,
-      [
-        { val: userId, dir: oracledb.BIND_IN },
-        { val: req.body.hospital_id ?? null, dir: oracledb.BIND_IN },
-        { val: blood_group, dir: oracledb.BIND_IN },
-        { val: component, dir: oracledb.BIND_IN },
-        { val: units_needed, dir: oracledb.BIND_IN },
-        { val: urgency, dir: oracledb.BIND_IN },
-      ],
-      { autoCommit: true }
-    );
+    const { blood_group, component, units_needed, urgency, hospital_id, latitude, longitude } = result.data;
 
     const requestResult: any = await runQueryOne(
-      `SELECT request_id, user_id, hospital_id, blood_group, component, units_needed, urgency, status, created_at
-       FROM blood_requests WHERE user_id = :1 ORDER BY request_id DESC FETCH FIRST 1 ROW ONLY`,
-      [userId]
+      `INSERT INTO blood_requests (user_id, hospital_id, blood_group, component, units_needed, urgency, status)
+       VALUES (:1, :2, :3, :4, :5, :6, 'open')
+       RETURNING request_id, user_id, hospital_id, blood_group, component, units_needed, urgency, status, created_at`,
+      [userId, hospital_id ?? null, blood_group, component, units_needed, urgency]
     );
 
     if (!requestResult) {
@@ -82,9 +74,27 @@ router.post("/", async (req: Request, res: Response) => {
       urgency,
     });
 
+    let emailAlerts = { enabled: false, matched: 0, sent: 0, failed: 0 };
+    try {
+      emailAlerts = await notifyNearbyBloodResources({
+        requestId: Number(requestResult.REQUEST_ID ?? requestResult.request_id),
+        userId,
+        hospitalId: hospital_id,
+        bloodGroup: blood_group,
+        component,
+        unitsNeeded: units_needed,
+        urgency,
+        latitude,
+        longitude,
+      });
+    } catch (alertError) {
+      console.error("Failed to send nearby blood request alerts:", alertError);
+      emailAlerts = { enabled: true, matched: 0, sent: 0, failed: 1 };
+    }
+
     res.status(201).json({
       success: true,
-      data: { request: camelRequest },
+      data: { request: camelRequest, emailAlerts },
       error: null,
     });
   } catch (err) {

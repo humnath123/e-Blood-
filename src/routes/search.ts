@@ -108,30 +108,31 @@ router.post("/", async (req: Request, res: Response) => {
     `;
 
     // Priority 3: Compatible available eligible donors in radius
-    // Placeholders: :1=lat :2=lng :3=radius  (each appears twice)
     const donorQuery = `
       SELECT 
         user_id AS "user_id",
         username,
         phone,
+        blood_group AS "blood_group",
         latitude,
         longitude,
         role,
         (6371 * ACOS(
-          COS(RADIANS(:1)) * COS(RADIANS(latitude)) * COS(RADIANS(longitude) - RADIANS(:2))
-          + SIN(RADIANS(:1)) * SIN(RADIANS(latitude))
+          COS(RADIANS(:latitude)) * COS(RADIANS(latitude)) * COS(RADIANS(longitude) - RADIANS(:longitude))
+          + SIN(RADIANS(:latitude)) * SIN(RADIANS(latitude))
         )) AS distanceKm
       FROM users
       WHERE role = 'donor'
         AND is_active = 1
+        AND is_available = 1
+        AND blood_group = :bloodGroup
+        AND latitude IS NOT NULL
+        AND longitude IS NOT NULL
         AND (last_donated_at IS NULL OR last_donated_at < ADD_MONTHS(CURRENT_TIMESTAMP, -3))
-        AND (
-          :1 IS NULL
-          OR (6371 * ACOS(
-            COS(RADIANS(:1)) * COS(RADIANS(latitude)) * COS(RADIANS(longitude) - RADIANS(:2))
-            + SIN(RADIANS(:1)) * SIN(RADIANS(latitude))
-          )) <= :3
-        )
+        AND (6371 * ACOS(
+          COS(RADIANS(:latitude)) * COS(RADIANS(latitude)) * COS(RADIANS(longitude) - RADIANS(:longitude))
+          + SIN(RADIANS(:latitude)) * SIN(RADIANS(latitude))
+        )) <= :radiusKm
       ORDER BY distanceKm ASC
     `;
 
@@ -166,7 +167,12 @@ router.post("/", async (req: Request, res: Response) => {
     const [bankResult, hospitalResult, donorResult] = await Promise.all([
       runQuery<Record<string, any>>(bankQuery, bankBinds),
       runQuery<Record<string, any>>(hospitalQuery, coordBinds(latB, lngB, radiusKm)),
-      runQuery<Record<string, any>>(donorQuery, coordBinds(latB, lngB, radiusKm)),
+      runQuery<Record<string, any>>(donorQuery, {
+        bloodGroup,
+        latitude: latB,
+        longitude: lngB,
+        radiusKm,
+      }),
     ]);
 
     // Transform results to camelCase (Oracle returns UPPER_SNAKE_CASE keys)

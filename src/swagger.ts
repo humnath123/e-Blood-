@@ -53,7 +53,7 @@ export const swaggerDocument = {
   },
   paths: {
     "/health": { get: operation("System", "Check API and Oracle database health") },
-    "/auth/register": { post: operation("Auth", "Register a user", jsonBody({ identifier: { type: "string" }, password: { type: "string" }, role: { type: "string" } }, ["identifier", "password", "role"])) },
+    "/auth/register": { post: operation("Auth", "Register a user", jsonBody({ identifier: { type: "string" }, password: { type: "string" }, role: { type: "string" }, bloodGroup: { type: "string" } }, ["identifier", "password", "role"])) },
     "/auth/login": { post: operation("Auth", "Log in", jsonBody({ identifier: { type: "string" }, password: { type: "string" } }, ["identifier", "password"])) },
     "/auth/refresh": { post: operation("Auth", "Refresh access token", jsonBody({ refreshToken: { type: "string" } }, ["refreshToken"])) },
     "/auth/logout": { post: operation("Auth", "Log out", undefined, [], true) },
@@ -64,14 +64,14 @@ export const swaggerDocument = {
     "/auth/password": { post: operation("Auth", "Update password", jsonBody({ currentPassword: { type: "string" }, newPassword: { type: "string" } }, ["currentPassword", "newPassword"]), [], true) },
     "/me": {
       get: operation("Profile", "Get current profile", undefined, [], true),
-      patch: operation("Profile", "Update current profile", jsonBody({ username: { type: "string" }, email: { type: "string" }, phone: { type: "string" } }), [], true),
+      patch: operation("Profile", "Update current profile", jsonBody({ username: { type: "string" }, email: { type: "string" }, phone: { type: "string" }, blood_group: { type: "string" } }), [], true),
     },
     "/me/location": { patch: operation("Profile", "Update location", jsonBody({ latitude: { type: "number" }, longitude: { type: "number" } }, ["latitude", "longitude"]), [], true) },
     "/me/donor-availability": { patch: operation("Profile", "Update donor availability", jsonBody({ is_available: { type: "boolean" } }), [], true) },
     "/search": { post: operation("Search", "Search blood banks, hospitals and eligible donors", jsonBody({ bloodGroup: { type: "string" }, component: { type: "string" }, units: { type: "integer" }, latitude: { type: "number" }, longitude: { type: "number" }, radiusKm: { type: "number" } }, ["bloodGroup"])) },
     "/requests": {
       get: operation("Requests", "List blood requests", undefined, [{ name: "status", in: "query", schema: { type: "string" } }, { name: "blood_group", in: "query", schema: { type: "string" } }], true),
-      post: operation("Requests", "Create blood request", jsonBody({ blood_group: { type: "string" }, component: { type: "string" }, units_needed: { type: "integer" }, urgency: { type: "string" } }, ["blood_group", "component", "units_needed"]), [], true),
+      post: operation("Requests", "Create blood request", jsonBody({ blood_group: { type: "string" }, component: { type: "string" }, units_needed: { type: "integer" }, urgency: { type: "string" }, hospital_id: { type: "integer" }, latitude: { type: "number" }, longitude: { type: "number" } }, ["blood_group", "component", "units_needed"]), [], true),
     },
     "/requests/{id}": {
       get: operation("Requests", "Get a blood request", undefined, [idParam()], true),

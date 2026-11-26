@@ -28,10 +28,10 @@ VALUES ('ngo1', 'contact@redcross.org.np', '9845678901',
     '$2b$12$ozFa6kNdbDPl6m9nBC5pyudscJZpW49t0PiShEvdQ6aYih.cJeShS', 'ngo', 1);
 
 -- Donor user (last_donated_at in the past so the 90-day rule applies)
-INSERT INTO users (username, email, phone, password_hash, role, is_active, last_donated_at)
+INSERT INTO users (username, email, phone, password_hash, role, is_active, last_donated_at, blood_group, is_available, latitude, longitude)
 VALUES ('donor1', 'ram@eblood.np', '9711111111',
     '$2b$12$ozFa6kNdbDPl6m9nBC5pyudscJZpW49t0PiShEvdQ6aYih.cJeShS', 'donor', 1,
-    CURRENT_TIMESTAMP - NUMTODSINTERVAL(180, 'DAY'));
+    CURRENT_TIMESTAMP - NUMTODSINTERVAL(180, 'DAY'), 'A+', 1, 27.7172, 85.3240);
 
 -- Patient user
 INSERT INTO users (username, email, phone, password_hash, role, is_active)
@@ -39,9 +39,9 @@ VALUES ('patient1', 'sita@family.np', '9755555555',
     '$2b$12$ozFa6kNdbDPl6m9nBC5pyudscJZpW49t0PiShEvdQ6aYih.cJeShS', 'patient', 1);
 
 -- Additional donor
-INSERT INTO users (username, email, phone, password_hash, role, is_active)
+INSERT INTO users (username, email, phone, password_hash, role, is_active, blood_group, is_available, latitude, longitude)
 VALUES ('donor2', 'hari@eblood.np', '9722222222',
-    '$2b$12$ozFa6kNdbDPl6m9nBC5pyudscJZpW49t0PiShEvdQ6aYih.cJeShS', 'donor', 1);
+    '$2b$12$ozFa6kNdbDPl6m9nBC5pyudscJZpW49t0PiShEvdQ6aYih.cJeShS', 'donor', 1, 'O+', 1, 27.6613, 85.3208);
 
 -- Additional patient
 INSERT INTO users (username, email, phone, password_hash, role, is_active)

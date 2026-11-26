@@ -47,7 +47,7 @@ async function main() {
 
   let files = fs
     .readdirSync(dir)
-    .filter((f) => f.endsWith(".sql"))
+    .filter((f) => f.endsWith(".sql") && (onlyFile || !f.endsWith("_seed.sql")))
     .sort();
   if (onlyFile) files = files.filter((f) => f === onlyFile);
 

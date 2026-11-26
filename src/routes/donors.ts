@@ -59,16 +59,19 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const { email, username, password, phone, fullName, bloodGroup } = req.body;
+    const { email, username, password, phone, bloodGroup } = req.body;
     if (!email || !username || !password || !phone) {
       return res.status(400).json({ success: false, message: "email, username, password and phone are required" });
     }
+    if (bloodGroup && !["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].includes(bloodGroup)) {
+      return res.status(400).json({ success: false, message: "Invalid bloodGroup" });
+    }
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await runQueryOne(
-      `INSERT INTO users (username, email, phone, password_hash, role)
-       VALUES (:1, :2, :3, :4, 'donor')
-       RETURNING user_id, username, email, phone, role, is_active, created_at`,
-      [username, email, phone, passwordHash]
+      `INSERT INTO users (username, email, phone, password_hash, role, blood_group)
+       VALUES (:1, :2, :3, :4, 'donor', :5)
+       RETURNING user_id, username, email, phone, role, blood_group, is_active, is_available, created_at`,
+      [username, email, phone, passwordHash, bloodGroup ?? null]
     );
     return res.status(201).json({
       success: true,
