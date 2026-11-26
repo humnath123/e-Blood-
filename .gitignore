@@ -40,5 +40,9 @@ tsc-output.txt
 Thumbs.db
 Desktop.ini
 
+# Local certificate signature images
+signatures/
+test-output/
+
 # TypeScript incremental build cache
 *.tsbuildinfo

@@ -4,14 +4,290 @@ import * as oracledb from "oracledb";
 import { runQueryOne, runQuery } from "../database/pool";
 import { toCamelCase } from "../database/mapper";
 import { createAuditLog } from "../middleware/audit";
+import { getBrandLogoAttachment, getMailer } from "../services/mailer";
+import { buildDonationCertificate } from "../services/donation-certificate";
+import {
+  buildDonationCertificateEmail,
+  certificateLogoCid,
+} from "../services/donation-certificate-email";
 
 const router = Router();
+const donationCertificateQuery = `
+  SELECT d.donation_id AS "donationId",
+         d.bank_id AS "bankId",
+         d.status AS "status",
+         d.collected_at AS "donationDate",
+         d.certificate_id AS "certificateId",
+         d.certificate_sent_at AS "certificateSentAt",
+         d.certificate_delivery_status AS "certificateDeliveryStatus",
+         d.certificate_delivery_attempted_at AS "certificateDeliveryAttemptedAt",
+         u.username AS "username",
+         u.first_name AS "firstName",
+         u.last_name AS "lastName",
+         u.email AS "email",
+         d.blood_group AS "donationBloodGroup",
+         u.blood_group AS "userBloodGroup"
+  FROM donations d
+  JOIN users u ON u.user_id = d.user_id
+  WHERE d.donation_id = :1
+`;
 
 // Validation schemas
 const createDonationSchema = z.object({
   bank_id: z.number().int().positive("Invalid blood bank ID"),
   components: z.enum(['whole_blood', 'plasma', 'platelets', 'rbc']).default('whole_blood'),
   units: z.number().min(1).default(1),
+});
+const certificateIssueSchema = z.object({ retry: z.boolean().optional() }).strict();
+
+// POST /api/v1/donations/:id/certificate
+router.post("/:id/certificate", async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const role = String(user?.role ?? "").toLowerCase();
+  if (role !== "admin" && role !== "bloodbank_staff") {
+    return res.status(user ? 403 : 401).json({
+      success: false,
+      error: {
+        code: user ? "FORBIDDEN" : "NOT_AUTHENTICATED",
+        message: user
+          ? "Only administrators and blood bank staff can issue donation certificates."
+          : "User not authenticated.",
+      },
+      data: null,
+    });
+  }
+
+  const donationId = Number(req.params.id);
+  if (!Number.isSafeInteger(donationId) || donationId < 1) {
+    return res.status(400).json({
+      success: false,
+      error: { code: "INVALID_DONATION_ID", message: "Donation ID must be a positive integer." },
+      data: null,
+    });
+  }
+  const request = certificateIssueSchema.safeParse(req.body ?? {});
+  if (!request.success) {
+    return res.status(400).json({
+      success: false,
+      error: { code: "VALIDATION_ERROR", message: request.error.issues.map((issue) => issue.message).join(", ") },
+      data: null,
+    });
+  }
+  const retry = request.data.retry ?? false;
+
+  try {
+    const donation = await runQueryOne<Record<string, any>>(donationCertificateQuery, [donationId]);
+    if (!donation) {
+      return res.status(404).json({
+        success: false,
+        error: { code: "DONATION_NOT_FOUND", message: "Donation not found." },
+        data: null,
+      });
+    }
+
+    if (String(donation.status ?? "").toLowerCase() !== "completed") {
+      return res.status(409).json({
+        success: false,
+        error: { code: "DONATION_NOT_COMPLETED", message: "A certificate can only be issued for a completed donation." },
+        data: null,
+      });
+    }
+
+    if (role === "bloodbank_staff" && Number((req as any).facilityId) !== Number(donation.bankId)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: "FORBIDDEN", message: "You can only issue certificates for donations at your blood bank." },
+        data: null,
+      });
+    }
+
+    const donorEmail = String(donation.email ?? "").trim();
+    if (!donorEmail) {
+      return res.status(422).json({
+        success: false,
+        error: { code: "DONOR_EMAIL_MISSING", message: "The donor does not have an email address on file." },
+        data: null,
+      });
+    }
+
+    const candidateCertificateId = `EBLD-DON-${String(donationId).padStart(8, "0")}`;
+    const certificateRecord: any = await runQueryOne(
+      `UPDATE donations
+       SET certificate_id = NVL(certificate_id, :1),
+           certificate_delivery_status = NVL(certificate_delivery_status, 'pending')
+       WHERE donation_id = :2 AND LOWER(status) = 'completed'
+       RETURNING certificate_id, certificate_delivery_status, certificate_sent_at`,
+      [candidateCertificateId, donationId]
+    );
+    if (!certificateRecord) {
+      return res.status(409).json({
+        success: false,
+        error: { code: "DONATION_NOT_COMPLETED", message: "A certificate can only be issued for a completed donation." },
+        data: null,
+      });
+    }
+
+    const certificateId = String(
+      certificateRecord.CERTIFICATE_ID ?? certificateRecord.certificate_id ?? candidateCertificateId
+    );
+    const deliveryStatus = String(
+      certificateRecord.CERTIFICATE_DELIVERY_STATUS ??
+      certificateRecord.certificate_delivery_status ??
+      "pending"
+    ).toLowerCase();
+    if (deliveryStatus === "sent" && !retry) {
+      return res.status(409).json({
+        success: false,
+        error: { code: "CERTIFICATE_ALREADY_SENT", message: "This certificate has already been emailed. Set retry to true to authorize a resend." },
+        data: { certificateId, certificateSentAt: certificateRecord.CERTIFICATE_SENT_AT ?? null },
+      });
+    }
+    if (["sending", "failed"].includes(deliveryStatus) && !retry) {
+      return res.status(409).json({
+        success: false,
+        error: { code: deliveryStatus === "sending" ? "CERTIFICATE_DELIVERY_IN_PROGRESS" : "CERTIFICATE_RETRY_REQUIRED", message: "Set retry to true to retry or recover certificate delivery." },
+        data: { certificateId, deliveryStatus },
+      });
+    }
+    let mailer: ReturnType<typeof getMailer>;
+    try {
+      mailer = getMailer();
+      if (!mailer) {
+        return res.status(503).json({
+          success: false,
+          error: { code: "SMTP_NOT_CONFIGURED", message: "SMTP is not configured for certificate delivery." },
+          data: null,
+        });
+      }
+    } catch (error) {
+      console.error("Certificate mailer configuration failed:", error instanceof Error ? error.message : "UNKNOWN");
+      return res.status(503).json({
+        success: false,
+        error: { code: "SMTP_CONFIGURATION_INVALID", message: "SMTP configuration is invalid for certificate delivery." },
+        data: null,
+      });
+    }
+
+    const firstName = String(donation.firstName ?? "").trim();
+    const lastName = String(donation.lastName ?? "").trim();
+    if (!firstName || !lastName) {
+      return res.status(422).json({
+        success: false,
+        error: { code: "DONOR_NAME_MISSING", message: "The donor profile must include both first and last names before a certificate can be issued." },
+        data: null,
+      });
+    }
+    const donorName = `${firstName} ${lastName}`;
+    let pdf: Buffer;
+    try {
+      pdf = await buildDonationCertificate({
+        donorName,
+        bloodGroup: String(donation.donationBloodGroup ?? donation.userBloodGroup ?? ""),
+        donationDate: donation.donationDate,
+        certificateId,
+      });
+    } catch (error) {
+      console.error("Donation certificate generation failed:", error);
+      return res.status(500).json({
+        success: false,
+        error: { code: "CERTIFICATE_GENERATION_FAILED", message: "Failed to generate the donation certificate." },
+        data: null,
+      });
+    }
+
+    const claimedCertificate: any = await runQueryOne(
+      `UPDATE donations
+       SET certificate_delivery_status = 'sending',
+           certificate_delivery_attempted_at = CURRENT_TIMESTAMP
+       WHERE donation_id = :1 AND certificate_id = :2
+         AND (certificate_delivery_status = 'pending'
+              OR (:3 = 1 AND certificate_delivery_status IN ('failed', 'sent'))
+            OR (:4 = 1 AND certificate_delivery_status = 'sending'
+                  AND certificate_delivery_attempted_at < CURRENT_TIMESTAMP - INTERVAL '15' MINUTE))
+       RETURNING donation_id`,
+      [donationId, certificateId, retry ? 1 : 0, retry ? 1 : 0]
+    );
+    if (!claimedCertificate) {
+      const current: any = await runQueryOne(
+        `SELECT certificate_delivery_status, certificate_sent_at
+         FROM donations WHERE donation_id = :1`,
+        [donationId]
+      );
+      return res.status(409).json({
+        success: false,
+        error: { code: "CERTIFICATE_DELIVERY_CONFLICT", message: "Certificate delivery was claimed by another request or requires an authorized retry." },
+        data: {
+          certificateId,
+          deliveryStatus: String(current?.CERTIFICATE_DELIVERY_STATUS ?? "unknown").toLowerCase(),
+          certificateSentAt: current?.CERTIFICATE_SENT_AT ?? null,
+        },
+      });
+    }
+
+    try {
+      const email = buildDonationCertificateEmail(donorName, certificateId);
+      await mailer.transporter.sendMail({
+        from: mailer.from,
+        to: donorEmail,
+        ...email,
+        attachments: [{
+          filename: `eBlood-certificate-${certificateId}.pdf`,
+          content: pdf,
+          contentType: "application/pdf",
+        }, getBrandLogoAttachment(certificateLogoCid)],
+      });
+    } catch (error) {
+      const code = (error as { code?: unknown })?.code;
+      console.error(
+        "Donation certificate email failed:",
+        typeof code === "string" ? code : error instanceof Error ? error.message : "UNKNOWN"
+      );
+      await runQueryOne(
+        `UPDATE donations SET certificate_delivery_status = 'failed'
+         WHERE donation_id = :1 AND certificate_id = :2
+           AND certificate_delivery_status = 'sending'`,
+        [donationId, certificateId]
+      );
+      return res.status(502).json({
+        success: false,
+        error: { code: "CERTIFICATE_EMAIL_FAILED", message: "The certificate was generated, but email delivery failed. Retry to resend it with the same certificate ID." },
+        data: { certificateId, deliveryStatus: "failed" },
+      });
+    }
+
+    const sentRecord: any = await runQueryOne(
+      `UPDATE donations
+       SET certificate_delivery_status = 'sent',
+           certificate_sent_at = CURRENT_TIMESTAMP
+       WHERE donation_id = :1 AND certificate_id = :2
+         AND certificate_delivery_status = 'sending'
+       RETURNING certificate_sent_at, certificate_delivery_status`,
+      [donationId, certificateId]
+    );
+    if (!sentRecord) {
+      throw new Error("Email was accepted, but certificate delivery status could not be saved.");
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        donationId,
+        certificateId,
+        certificateSentAt: sentRecord?.CERTIFICATE_SENT_AT ?? sentRecord?.certificate_sent_at ?? null,
+        deliveryStatus: String(sentRecord?.CERTIFICATE_DELIVERY_STATUS ?? "sent").toLowerCase(),
+        recipient: donorEmail,
+      },
+      message: "Donation certificate emailed successfully.",
+      error: null,
+    });
+  } catch (err) {
+    console.error("Issue donation certificate error:", err);
+    return res.status(500).json({
+      success: false,
+      error: { code: "CERTIFICATE_ISSUE_FAILED", message: "Failed to issue the donation certificate." },
+      data: null,
+    });
+  }
 });
 
 // GET /api/v1/donations/me - Get current user's donations

@@ -22,6 +22,8 @@ import adminRoutes from "./routes/admin";
 import donorRoutes from "./routes/donors";
 import bloodBankRoutes from "./routes/blood-banks";
 import notificationRoutes from "./routes/notifications";
+import transportRoutes from "./routes/transports";
+import eventRoutes from "./routes/events";
 import { errorHandler } from "./middleware/error";
 import { authenticate } from "./middleware/auth";
 import { setFacilityId } from "./middleware/facility";
@@ -198,6 +200,12 @@ app.use("/api/v1/rewards", authenticate, rewardRoutes);
 
 // Campaign routes
 app.use("/api/v1/campaigns", authenticate, campaignRoutes);
+
+// Blood transportation requests and delivery workflow
+app.use("/api/v1/transports", authenticate, setFacilityId, transportRoutes);
+
+// Donation events are separate from NGO campaigns
+app.use("/api/v1/events", authenticate, eventRoutes);
 
 // Admin routes
 app.use("/api/v1/admin", authenticate, adminRoutes);
