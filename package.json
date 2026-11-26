@@ -7,7 +7,7 @@
     "build": "tsc",
     "dev": "nodemon --watch src --ext ts --exec \"npm run build && node dist/app.js\"",
     "start": "node dist/app.js",
-    "test": "npm run build && node --test scripts/test-workflows.js && node scripts/test-certificate.js",
+    "test": "npm run build && node --test scripts/test-workflows.js scripts/test-donor-eligibility.js && node scripts/test-certificate.js",
     "mail:test": "node scripts/test-mail.js",
     "db:migrate": "node scripts/migrate.js --dir db/migrations",
     "db:migrate:alerts": "node scripts/migrate.js --dir db/migrations --file 005_donor_alert_fields.sql",

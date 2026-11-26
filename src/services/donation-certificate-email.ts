@@ -86,7 +86,7 @@ function buildDonationCertificateEmailHtml(
           With heartfelt gratitude,
         </p>
         <p style="margin: 0; font-size: 15; color: #1A1A2E; font-weight: 600; line-height: 1.6;">
-          Humnath Pokharel and Saurav Bogati
+          Humnath Pokharel and Surav Bogati
         </p>
         <p style="margin: 4px 0 0; font-size: 14; color: #666666; line-height: 1.6;">
           CEOs, e-Blood
@@ -109,7 +109,7 @@ export function buildDonationCertificateEmail(donorName: string, certificateId: 
   
   return {
     subject: certificateEmailSubject,
-    text: `Dear ${donorName},\n\nOn behalf of e-Blood, we sincerely thank you for your generous blood donation. Your kindness, compassion, and willingness to help those in need reflect the true spirit of humanity. Your contribution makes a meaningful difference and brings hope to patients and families in our community.\n\nAs a token of our heartfelt appreciation, please find your Certificate of Appreciation attached as a PDF. This certificate recognizes your completed blood donation and serves as a lasting acknowledgment of your generosity.\n\nCertificate ID: ${safeCertificateId}\n\nThank you for being part of our mission to connect donors and save lives. Your generosity inspires us to continue making a difference.\n\nWith heartfelt gratitude,\n\nHumnath Pokharel and Saurav Bogati\nCEOs, e-Blood\nConnecting Donors. Saving Lives.`,
+    text: `Dear ${donorName},\n\nOn behalf of e-Blood, we sincerely thank you for your generous blood donation. Your kindness, compassion, and willingness to help those in need reflect the true spirit of humanity. Your contribution makes a meaningful difference and brings hope to patients and families in our community.\n\nAs a token of our heartfelt appreciation, please find your Certificate of Appreciation attached as a PDF. This certificate recognizes your completed blood donation and serves as a lasting acknowledgment of your generosity.\n\nCertificate ID: ${safeCertificateId}\n\nThank you for being part of our mission to connect donors and save lives. Your generosity inspires us to continue making a difference.\n\nWith heartfelt gratitude,\n\nHumnath Pokharel and Surav Bogati\nCEOs, e-Blood\nConnecting Donors. Saving Lives.`,
     html: buildDonationCertificateEmailHtml(donorName, certificateId),
   };
 }

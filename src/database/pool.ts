@@ -7,6 +7,7 @@ export type PoolType = oracledb.Pool;
 export type SessionType = oracledb.Connection;
 
 let pool: PoolType | null = null;
+let shutdownHandlerRegistered = false;
 
 export async function getPool(): Promise<PoolType> {
   if (pool) return pool;
@@ -24,17 +25,24 @@ export async function getPool(): Promise<PoolType> {
 
   pool = await oracledb.createPool(options);
 
-  // Graceful shutdown handler
-  process.on("beforeExit", async () => {
-    try {
-      await pool?.close();
-      console.log("Oracle pool closed successfully");
-    } catch (err) {
-      console.error("Error closing Oracle pool:", err);
-    }
-  });
+  if (!shutdownHandlerRegistered) {
+    shutdownHandlerRegistered = true;
+    process.on("beforeExit", async () => {
+      try {
+        await closePool();
+      } catch (err) {
+        console.error("Error closing Oracle pool:", err);
+      }
+    });
+  }
 
   return pool;
+}
+
+export async function closePool() {
+  const activePool = pool;
+  pool = null;
+  if (activePool) await activePool.close(0);
 }
 
 export async function getConnection() {

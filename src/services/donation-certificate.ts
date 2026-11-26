@@ -19,7 +19,7 @@ const devanagariFontPath = path.join(
 );
 const signatories = [
   { name: "Humnath Pokharel", title: "CEO, e-Blood", file: "humanth.png" },
-  { name: "Saurav Bogati", title: "CEO, e-Blood", file: "surav.png" },
+  { name: "Surav Bogati", title: "CEO, e-Blood", file: "surav.png" },
 ];
 const burgundy = "#4B1020";
 const deepBurgundy = "#310713";
