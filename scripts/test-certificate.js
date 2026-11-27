@@ -11,12 +11,13 @@ const outputPath = path.join(outputDirectory, "certificate.pdf");
 const signatures = [
   { name: "Humnath Pokharel", file: "humanth.png" },
   { name: "Surav Bogati", file: "surav.png" },
+  { name: "Prashant Syangtan", file: "prashant.png" },
 ];
 const sample = {
-  donorName: "Surav Bogati",
+  donorName: "Prashant Tamang",
   bloodGroup: "O+",
   donationDate: "2026-03-15T10:00:00+05:45",
-  certificateId: "EBLD-TEST-DON-00000001",
+  certificateId: "EBLD-TEST-DON-PRASHANT",
 };
 
 function normalizeText(value) {
@@ -90,7 +91,7 @@ function assertOneLandscapePage(pdf, label) {
 }
 
 function assertSignatureLayout(inspected) {
-  assert.equal(inspected.signatureLines.length, 2, "PDF must contain two signature lines");
+  assert.equal(inspected.signatureLines.length, 3, "PDF must contain three signature lines");
   const lines = [...inspected.signatureLines].sort((a, b) => a.x1 - b.x1);
   const widths = lines.map((line) => line.x2 - line.x1);
   assert.ok(widths.every((width) => Math.abs(width - widths[0]) < 0.1), "Signature columns must be equal width");
@@ -145,6 +146,7 @@ function assertCertificateDetails(inspected, data) {
     data.certificateId,
     "Humnath Pokharel",
     "Surav Bogati",
+    "Prashant Syangtan",
     "CEO, e-Blood",
     "Your generosity represents the true spirit of humanity.",
   ]) {
@@ -241,7 +243,7 @@ async function main() {
           "",
           "This automated message verifies the eBlood donor certificate workflow, including PDF generation, attachment handling, and SMTP submission.",
           "",
-          "The attached certificate was generated with synthetic test data for Surav Bogati. It is for software testing only and is not an official donation record or proof of donation.",
+          "The attached certificate was generated with test data for Prashant Tamang. It is for software testing only and is not an official donation record or proof of donation.",
           "",
           "No action is required. Please do not distribute or rely on the attachment as an official certificate.",
           "",

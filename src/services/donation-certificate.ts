@@ -20,6 +20,7 @@ const devanagariFontPath = path.join(
 const signatories = [
   { name: "Humnath Pokharel", title: "CEO, e-Blood", file: "humanth.png" },
   { name: "Surav Bogati", title: "CEO, e-Blood", file: "surav.png" },
+  { name: "Prashant Syangtan", title: "CEO, e-Blood", file: "prashant.png" },
 ];
 const burgundy = "#4B1020";
 const deepBurgundy = "#310713";
@@ -272,9 +273,9 @@ export async function buildDonationCertificate(
         );
 
       const signatureLineY = pageHeight - 130;
-      const signatureWidth = 238;
-      const signatureGap = 90;
-      const signaturesLeft = (pageWidth - (signatureWidth * 2 + signatureGap)) / 2;
+      const signatureWidth = 210;
+      const signatureGap = 30;
+      const signaturesLeft = (pageWidth - (signatureWidth * 3 + signatureGap * 2)) / 2;
       signatories.forEach((signatory, index) => {
         const x = signaturesLeft + index * (signatureWidth + signatureGap);
         const imagePath = path.join(projectRoot, "signatures", signatory.file);

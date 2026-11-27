@@ -31,7 +31,7 @@ test("certificate email uses the required subject, actual donor name, inline log
   assert.match(email.html, /Dear &lt;Donor &amp; Test&gt;/);
   assert.match(email.html, /cid:eblood-certificate-logo/);
   assert.match(email.html, /EBLD-TEST-001/);
-  assert.match(email.text, /Humnath Pokharel and Surav Bogati/);
+  assert.match(email.text, /Humnath Pokharel, Surav Bogati, and Prashant Syangtan/);
   assert.match(email.html, /CEOs, e-Blood/);
   assert.equal(email.html.includes("<Donor & Test>"), false);
   assert.equal(certificateLogoCid, "eblood-certificate-logo");
