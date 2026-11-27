@@ -68,8 +68,8 @@ router.post("/", async (req: Request, res: Response) => {
     }
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await runQueryOne(
-      `INSERT INTO users (username, email, phone, password_hash, role, blood_group)
-       VALUES (:1, :2, :3, :4, 'donor', :5)
+      `INSERT INTO users (user_id, username, email, phone, password_hash, role, blood_group)
+       VALUES (seq_users.NEXTVAL, :1, :2, :3, :4, 'donor', :5)
        RETURNING user_id, username, email, phone, role, blood_group, is_active, is_available, created_at`,
       [username, email, phone, passwordHash, bloodGroup ?? null]
     );

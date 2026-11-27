@@ -223,17 +223,136 @@ export async function runQuery<T = Record<string, any>>(
   options: { autoCommit?: boolean } = {}
 ): Promise<T[]> {
   const result: any = await withConnection(async (conn: any) => {
-    const execResult: any = await (conn as any).execute(sql, binds, {
+    // Oracle (thin mode) rejects "RETURNING col" without "INTO". Many routes use
+    // the shorthand form, so transparently rewrite it to "RETURNING col INTO :out"
+    // with correctly-typed OUT binds, then rebuild the row from the OUT values.
+    const rw = await rewriteReturning(conn, sql, binds);
+    const execResult: any = await (conn as any).execute(rw.sql, rw.binds, {
       outFormat: oracledb.OUT_FORMAT_OBJECT,
       autoCommit: options.autoCommit ?? true,
       // Return CLOB columns as plain strings instead of Lob objects
       fetchAsString: [oracledb.CLOB],
     });
 
+    if (rw.rewritten) {
+      return await resolveLobValues(buildRowsFromOutBinds(execResult.outBinds, rw.columns));
+    }
+
     return await resolveLobValues(execResult.rows || []);
   });
 
   return result || [];
+}
+
+// ---- DML RETURNING support -------------------------------------------------
+
+const columnTypeCache = new Map<string, Map<string, any>>();
+
+function mapOracleType(dataType: string): any {
+  const t = (dataType || "").toUpperCase();
+  if (t.startsWith("NUMBER") || t === "FLOAT" || t === "BINARY_FLOAT" || t === "BINARY_DOUBLE") {
+    return oracledb.NUMBER;
+  }
+  if (t.startsWith("TIMESTAMP") || t === "DATE") {
+    return oracledb.DATE;
+  }
+  if (t === "CLOB" || t === "NCLOB") {
+    return oracledb.CLOB;
+  }
+  if (t === "BLOB" || t === "RAW" || t === "LONG RAW") {
+    return oracledb.BUFFER;
+  }
+  return oracledb.STRING;
+}
+
+async function getColumnTypes(conn: any, table: string): Promise<Map<string, any>> {
+  const key = table.toUpperCase();
+  const cached = columnTypeCache.get(key);
+  if (cached) return cached;
+
+  const map = new Map<string, any>();
+  try {
+    const res: any = await conn.execute(
+      `SELECT column_name, data_type FROM user_tab_columns WHERE table_name = :t`,
+      { t: key },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    for (const row of res.rows || []) {
+      map.set(String(row.COLUMN_NAME).toUpperCase(), mapOracleType(row.DATA_TYPE));
+    }
+  } catch {
+    // If metadata lookup fails, fall back to STRING typing below.
+  }
+  columnTypeCache.set(key, map);
+  return map;
+}
+
+function extractTableName(sql: string): string | null {
+  const m = sql.match(
+    /(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+([A-Za-z0-9_]+)/i
+  );
+  return m ? m[1] : null;
+}
+
+async function rewriteReturning(
+  conn: any,
+  sql: string,
+  binds: any[] | Record<string, any>
+): Promise<{ sql: string; binds: any; rewritten: boolean; columns: string[] }> {
+  // No RETURNING, or already uses "RETURNING ... INTO" -> leave untouched.
+  if (!/\bRETURNING\b/i.test(sql) || /\bRETURNING\b[\s\S]*?\bINTO\b/i.test(sql)) {
+    return { sql, binds, rewritten: false, columns: [] };
+  }
+
+  const match = sql.match(/\bRETURNING\s+([\s\S]+?)\s*$/i);
+  if (!match) return { sql, binds, rewritten: false, columns: [] };
+
+  const columns = match[1]
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
+  if (columns.length === 0) return { sql, binds, rewritten: false, columns: [] };
+
+  const table = extractTableName(sql);
+  const types = table ? await getColumnTypes(conn, table) : new Map<string, any>();
+
+  const outNames = columns.map((_, i) => `kgret${i}`);
+  const intoClause = outNames.map((n) => `:${n}`).join(", ");
+  const newSql = sql.replace(
+    /\bRETURNING\s+[\s\S]+?\s*$/i,
+    `RETURNING ${columns.join(", ")} INTO ${intoClause}`
+  );
+
+  const outBinds = columns.map((c, i) => ({
+    val: undefined,
+    dir: oracledb.BIND_OUT,
+    type: types.get(c.toUpperCase()) ?? oracledb.STRING,
+  }));
+
+  let newBinds: any;
+  if (Array.isArray(binds)) {
+    newBinds = [...binds, ...outBinds];
+  } else {
+    newBinds = { ...(binds as Record<string, any>) };
+    outNames.forEach((n, i) => {
+      newBinds[n] = outBinds[i];
+    });
+  }
+
+  return { sql: newSql, binds: newBinds, rewritten: true, columns };
+}
+
+function buildRowsFromOutBinds(outBinds: any, columns: string[]): any[] {
+  if (!outBinds) return [];
+  const isPositional = Array.isArray(outBinds);
+  const row: Record<string, any> = {};
+  columns.forEach((c, i) => {
+    const cell = isPositional ? outBinds[i] : outBinds[`kgret${i}`];
+    const value = Array.isArray(cell) ? cell[0] : cell;
+    row[c.toUpperCase()] = value;
+    row[c.toLowerCase()] = value;
+  });
+  return [row];
 }
 
 // Query runner with single result

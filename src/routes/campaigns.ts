@@ -105,9 +105,9 @@ router.post("/", async (req: Request, res: Response) => {
     // Create campaign
     const campaignResult: any = await runQueryOne(
       `INSERT INTO ngo_campaigns (title, description, target_blood_group, target_units, target_date, created_by)
-       VALUES (:1, :2, :3, :4, TO_TIMESTAMP(:5, 'YYYY-MM-DD"T"HH24:MI:SS'), :6)
+       VALUES (:1, :2, :3, :4, :5, :6)
        RETURNING campaign_id, title, description, target_blood_group, target_units, target_date, created_by, created_at`,
-      [title, description, target_blood_group, target_units, target_date, userId]
+      [title, description, target_blood_group, target_units, new Date(target_date), userId]
     );
 
     const camelCampaign = toCamelCase(campaignResult);
