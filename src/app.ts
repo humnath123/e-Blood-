@@ -1,11 +1,12 @@
 // @ts-nocheck
-import express, { Application, Request, Response } from "express";
+import express, { Application, Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import * as swaggerUi from "swagger-ui-express";
 import * as fs from "fs";
 import * as path from "path";
+import * as querystring from "querystring";
 import { initDb, getPool, withConnection, withTransaction, runQuery, runQueryOne } from "./database/pool";
 import { toCamelCase } from "./database/mapper";
 import authRoutes from "./routes/auth";
@@ -88,8 +89,24 @@ app.use((req: Request, res: Response, next) => {
   next();
 });
 
-// Body parsing
+// Body parsing - support both JSON and URL-encoded form data
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 app.use(express.json({ limit: "10kb" }));
+
+// Fallback: some clients (e.g. Swagger UI / HTML forms) post form-encoded
+// bodies with Content-Type: application/json. express.json() then throws a
+// 400 entity.parse.failed error. Re-parse such bodies as urlencoded so the
+// routes receive req.body normally.
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err?.type === "entity.parse.failed" && err?.status === 400) {
+    const raw = (err as any).body;
+    if (typeof raw === "string" && /^[^=]+=/.test(raw.trim())) {
+      req.body = querystring.parse(raw);
+      return next();
+    }
+  }
+  next(err);
+});
 
 // Swagger UI setup
 const swaggerDoc = swaggerDocument;
@@ -103,15 +120,19 @@ app.get("/api-docs.json", (_req: Request, res: Response) => {
   res.setHeader("Content-Type", "application/json");
   res.send(JSON.stringify(swaggerDoc));
 });
-app.use("/api-docs", express.static(swaggerPath));
-app.use("/api-docs", swaggerUi.serve);
-app.get("/api-docs", swaggerUi.setup(swaggerDoc, {
-  customSiteTitle: "eBlood API Documentation",
-  swaggerOptions: {
-    url: "/api-docs.json",
-    deepLinking: true,
-  },
-}));
+const serveSwagger = (basePath: string) => {
+  app.use(`${basePath}`, express.static(swaggerPath));
+  app.use(`${basePath}`, swaggerUi.serve);
+  app.get(`${basePath}`, swaggerUi.setup(swaggerDoc, {
+    customSiteTitle: "eBlood API Documentation",
+    swaggerOptions: {
+      url: "/api-docs.json",
+      deepLinking: true,
+    },
+  }));
+};
+serveSwagger("/api-docs");
+serveSwagger("/docs");
 
 // Health check - database connectivity
 app.get('/health', async (req: Request, res: Response) => {
@@ -132,11 +153,6 @@ app.get('/health', async (req: Request, res: Response) => {
     console.error(err.message);
     res.status(500).json({ status: 'database unavailable' });
   }
-});
-
-// API v1 prefix router
-app.use("/api/v1", async (req: Request, res: Response, next) => {
-  next();
 });
 
 // Auth routes

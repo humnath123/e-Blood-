@@ -38,17 +38,21 @@ export const logAuditAction = (action: string, entityType: string, entityId: num
 // Simple createAuditLog helper for direct use in routes (non-middleware)
 // Usage: await createAuditLog(userId, action, entityType, entityId, details, ip)
 export const createAuditLog = async (userId: number, action: string, entityType: string, entityId: number, details?: Record<string, any>, ip?: string) => {
-  await runQueryOne(
-    `INSERT INTO audit_log (user_id, action, entity_type, entity_id, ip_address)
-     VALUES (:1, :2, :3, :4, :5)`,
-    [
-      { val: userId || null, dir: oracledb.BIND_IN },
-      { val: action, dir: oracledb.BIND_IN },
-      { val: entityType, dir: oracledb.BIND_IN },
-      { val: entityId, dir: oracledb.BIND_IN },
-      { val: ip ?? null, dir: oracledb.BIND_IN },
-    ]
-  );
+  try {
+    await runQueryOne(
+      `INSERT INTO audit_log (user_id, action, entity_type, entity_id, ip_address)
+       VALUES (:1, :2, :3, :4, :5)`,
+      [
+        { val: userId || null, dir: oracledb.BIND_IN },
+        { val: action, dir: oracledb.BIND_IN },
+        { val: entityType, dir: oracledb.BIND_IN },
+        { val: entityId, dir: oracledb.BIND_IN },
+        { val: ip ?? null, dir: oracledb.BIND_IN },
+      ]
+    );
+  } catch (error) {
+    console.warn("Audit log write failed:", error);
+  }
 };
 export const getAuditLogs = async (req: Request, res: Response) => {
   try {

@@ -192,19 +192,25 @@ router.post("/register", async (req: Request, res: Response) => {
     const transactionResult = await withTransaction(async (conn: any) => {
       const finalUsername = isPhone ? `user_${identifier.slice(-4)}` : identifier.split("@")[0];
 
-      await conn.execute(
-        `INSERT INTO users (username, email, phone, password_hash, role, blood_group)
-         VALUES (:username, :email, :phone, :password_hash, :role, :blood_group)`,
-        {
-          username: finalUsername,
-          email: isPhone ? null : identifier,
-          phone: isPhone ? identifier : null,
-          password_hash: passwordHash,
-          role: role,
-          blood_group: result.data.bloodGroup ?? null,
-        },
-        { autoCommit: false }
-      );
+      const userValues = {
+        username: finalUsername,
+        email: isPhone ? null : identifier,
+        phone: isPhone ? identifier : null,
+        password_hash: passwordHash,
+        role: role,
+        blood_group: result.data.bloodGroup ?? null,
+      };
+
+      try {
+        await conn.execute(
+          `INSERT INTO users (user_id, username, email, phone, password_hash, role, blood_group)
+           VALUES (seq_users.NEXTVAL, :username, :email, :phone, :password_hash, :role, :blood_group)`,
+          userValues,
+          { autoCommit: false }
+        );
+      } catch (insertError: any) {
+        throw insertError;
+      }
 
       const userRes: any = await conn.execute(
         `SELECT user_id FROM users WHERE username = :1`,
@@ -268,6 +274,7 @@ router.post("/register", async (req: Request, res: Response) => {
       success: true,
       data: {
         token: accessToken,
+        refreshToken,
         user: {
           id: userId,
           email: isPhone ? null : identifier,
@@ -403,6 +410,7 @@ router.post("/login", async (req: Request, res: Response) => {
       success: true,
       data: {
         token: accessToken,
+        refreshToken,
         user: {
           id: userId,
           email: isPhone ? null : user.EMAIL ?? user.email,

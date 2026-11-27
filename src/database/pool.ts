@@ -21,12 +21,99 @@ export async function initDb(): Promise<void> {
     poolMax: 4,
     poolIncrement: 1
   });
-  // Health check query to verify connection
-  const conn = await oracledb.getConnection();
+  // Health check query to verify connection & ensure audit_log table exists
+  const conn = await pool.getConnection();
   try {
     await conn.execute('SELECT 1 FROM dual');
+    await ensureCoreSequences(conn);
+    await ensureAuditLogTable(conn);
   } finally {
     await conn.close();
+  }
+}
+
+async function ensureCoreSequences(conn: any): Promise<void> {
+  const sequences = [
+    'seq_users',
+    'seq_refresh_tokens',
+  ];
+
+  for (const sequenceName of sequences) {
+    try {
+      // Check if sequence already exists; if so, skip creation
+      const result: any = await conn.execute(
+        `SELECT 1 FROM user_sequences WHERE sequence_name = UPPER(:1)`,
+        [sequenceName],
+        { autoCommit: true }
+      );
+      if (result.rows.length === 0) {
+        // Sequence doesn't exist; create it
+        await conn.execute(
+          `CREATE SEQUENCE ${sequenceName} START WITH 1 INCREMENT BY 1 CACHE 20`,
+          [],
+          { autoCommit: true }
+        );
+      }
+    } catch (err) {
+      // ORA-02201: sequence already exists / not allowed here - ignore and continue
+      // Sequences may have been created during initial DB setup
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (!errMsg.includes('ORA-02201')) {
+        console.warn(`Could not ensure ${sequenceName}:`, err);
+      }
+    }
+  }
+}
+
+async function ensureAuditLogTable(conn: any): Promise<void> {
+  try {
+    const exists: any = await conn.execute(
+      `SELECT 1 FROM user_tables WHERE table_name = UPPER('audit_log')`,
+      [],
+      { autoCommit: true }
+    );
+    if (exists.rows.length > 0) {
+      console.log('audit_log table already exists');
+      return;
+    }
+    await conn.execute(
+      `CREATE TABLE audit_log (
+          log_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          user_id NUMBER,
+          action VARCHAR2(100) NOT NULL,
+          entity_type VARCHAR2(50),
+          entity_id NUMBER,
+          old_values CLOB,
+          new_values CLOB,
+          ip_address VARCHAR2(50),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+      )`,
+      [],
+      { autoCommit: true }
+    );
+    try {
+      await conn.execute(
+        `CREATE INDEX idx_audit_entity ON audit_log(entity_type, entity_id)`,
+        [], { autoCommit: true }
+      );
+    } catch {
+      // index may already exist
+    }
+    try {
+      await conn.execute(
+        `CREATE INDEX idx_audit_created ON audit_log(created_at)`,
+        [], { autoCommit: true }
+      );
+    } catch {
+      // index may already exist
+    }
+    console.log('Ensured audit_log table exists');
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    if (!errorMessage.includes('ORA-00955') && !errorMessage.includes('already exists')) {
+      console.warn('Could not ensure audit_log table:', err);
+    }
   }
 }
 

@@ -56,10 +56,22 @@ async function main() {
     process.exit(1);
   }
 
+  const user = process.env.DB_USER || process.env.ORACLE_USER;
+  const password = process.env.DB_PASSWORD || process.env.ORACLE_PASSWORD;
+  const connectString =
+    process.env.DB_CONNECT_STRING || process.env.ORACLE_CONNECT_STRING;
+
+  if (!user || !password || !connectString) {
+    console.error(
+      "Missing database configuration. Set DB_USER, DB_PASSWORD, and DB_CONNECT_STRING."
+    );
+    process.exit(1);
+  }
+
   const conn = await oracledb.getConnection({
-    user: process.env.ORACLE_USER,
-    password: process.env.ORACLE_PASSWORD,
-    connectString: process.env.ORACLE_CONNECT_STRING,
+    user,
+    password,
+    connectString,
   });
 
   let totalErrors = 0;
