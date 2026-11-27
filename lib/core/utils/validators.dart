@@ -19,8 +19,11 @@ class Validators {
     return null;
   }
 
-  static String? validatePhone(String? value) {
+  static String? validatePhone(String? value, {bool isRequired = false}) {
     if (value == null || value.trim().isEmpty) {
+      if (isRequired) {
+        return 'Phone number is required';
+      }
       return null; // Optional phone
     }
     final phoneRegExp = RegExp(r'^\+?[0-9\s\-()]{7,15}$');

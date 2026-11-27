@@ -41,6 +41,7 @@ class AuthNotifier extends Notifier<AuthState> {
     required String lastName,
     required String password,
     String? phone,
+    String? age,
     String? role,
   }) async {
     state = const AuthState.loading();
@@ -51,6 +52,7 @@ class AuthNotifier extends Notifier<AuthState> {
       lastName: lastName,
       password: password,
       phone: phone,
+      age: age,
       role: role,
     );
 
@@ -73,12 +75,12 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<bool> login({
-    required String identifier,
+    required String email,
     required String password,
   }) async {
     state = const AuthState.loading();
     final response = await _authRepository.login(
-      identifier: identifier,
+      email: email,
       password: password,
     );
 

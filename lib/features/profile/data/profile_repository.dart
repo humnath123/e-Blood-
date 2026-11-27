@@ -7,7 +7,7 @@ class ProfileRepository {
   /// Get profile
   Future<ProfileModel> getProfile() async {
     final response = await _apiClient.request(
-      '/api/profile/profile',
+      '/profile/profile',
       Method.get,
       data: {},
     );
@@ -22,7 +22,7 @@ class ProfileRepository {
   /// Update profile
   Future<ProfileModel?> updateProfile(ProfileModel profile) async {
     final response = await _apiClient.request(
-      '/api/profile/profile',
+      '/profile/profile',
       Method.put,
       data: profile.toJson(),
     );
@@ -40,7 +40,7 @@ class ProfileRepository {
     required String newPassword,
   }) async {
     final response = await _apiClient.request(
-      '/api/profile/password',
+      '/profile/password',
       Method.put,
       data: {
         'currentPassword': currentPassword,

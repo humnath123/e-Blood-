@@ -28,12 +28,14 @@ class RegisterScreen extends ConsumerStatefulWidget {
 class _RegisterScreenState extends ConsumerState<RegisterScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _ageController = TextEditingController();
 
   String _selectedBloodGroup = 'A+';
   bool _acceptTerms = true;
@@ -65,10 +67,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
 
   @override
   void dispose() {
-    _fullNameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _ageController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _entranceController.dispose();
@@ -87,9 +91,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     }
 
     if (_formKey.currentState!.validate()) {
-      final names = _fullNameController.text.trim().split(' ');
-      final firstName = names.isNotEmpty ? names.first : 'User';
-      final lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
+      final ageText = _ageController.text.trim();
+      final age = ageText.isNotEmpty ? ageText : null;
 
       final success = await ref.read(authProvider.notifier).register(
             email: _emailController.text.trim(),
@@ -98,10 +103,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                 : _emailController.text.split('@').first,
             firstName: firstName,
             lastName: lastName.isNotEmpty ? lastName : 'Donor',
+            age: age,
             password: _passwordController.text,
-            phone: _phoneController.text.trim().isNotEmpty
-                ? _phoneController.text.trim()
-                : null,
+            phone: _phoneController.text.trim(),
           );
       if (success && mounted) {
         context.go(AppRoutes.home);
@@ -293,12 +297,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               EBloodTextField(
-                                controller: _fullNameController,
-                                hint: 'Full Name (e.g. John Doe)',
-                                label: '',
+                                controller: _firstNameController,
+                                hint: 'First name',
+                                label: 'First Name',
                                 textInputAction: TextInputAction.next,
                                 suffixIcon: const Icon(Icons.person_outline, color: AppColors.textMuted, size: 20),
-                                validator: (val) => Validators.validateRequired(val, 'Full name'),
+                                validator: (val) => Validators.validateRequired(val, 'First name'),
+                              ),
+                              const SizedBox(height: 16),
+                              EBloodTextField(
+                                controller: _lastNameController,
+                                hint: 'Last name',
+                                label: 'Last Name',
+                                textInputAction: TextInputAction.next,
+                                suffixIcon: const Icon(Icons.person_outline, color: AppColors.textMuted, size: 20),
+                                validator: (val) => Validators.validateRequired(val, 'Last name'),
                               ),
                               const SizedBox(height: 16),
                               EBloodTextField(
@@ -313,13 +326,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                               const SizedBox(height: 16),
                               EBloodTextField(
                                 controller: _phoneController,
-                                hint: 'Phone number (optional)',
-                                label: '',
-                                isOptional: true,
+                                hint: 'Phone number',
+                                label: 'Phone Number',
+                                isOptional: false,
                                 keyboardType: TextInputType.phone,
                                 textInputAction: TextInputAction.next,
                                 suffixIcon: const Icon(Icons.phone_outlined, color: AppColors.textMuted, size: 20),
-                                validator: Validators.validatePhone,
+                                validator: (val) => Validators.validatePhone(val, isRequired: true),
+                              ),
+                              const SizedBox(height: 16),
+                              EBloodTextField(
+                                controller: _ageController,
+                                hint: 'Age (e.g. 25)',
+                                label: 'Age',
+                                keyboardType: TextInputType.number,
+                                textInputAction: TextInputAction.next,
+                                suffixIcon: const Icon(Icons.calendar_today_outlined, color: AppColors.textMuted, size: 20),
+                                validator: (val) => Validators.validateRequired(val, 'Age'),
                               ),
                               const SizedBox(height: 16),
                               EBloodTextField(

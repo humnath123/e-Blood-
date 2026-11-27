@@ -7,7 +7,7 @@ class DonorsRepository {
   /// Get all donors
   Future<List<DonorModel>> getAllDonors({String? bloodGroup}) async {
     final uri = Uri.parse(
-        '/api/donors/donors?'
+        '/donors/donors?'
         'bloodGroup=${bloodGroup ?? ''}');
     final response = await _apiClient.request(
       uri.path,
@@ -28,7 +28,7 @@ class DonorsRepository {
   /// Get donor by ID
   Future<DonorModel?> getDonorById(String donorId) async {
     final response = await _apiClient.request(
-      '/api/donors/donors/$donorId',
+      '/donors/donors/$donorId',
       Method.get,
       data: {},
     );
@@ -43,7 +43,7 @@ class DonorsRepository {
   /// Create a new donor
   Future<DonorModel?> createDonor(DonorModel donor) async {
     final response = await _apiClient.request(
-      '/api/donors/donors',
+      '/donors/donors',
       Method.post,
       data: donor.toJson(),
     );
@@ -58,7 +58,7 @@ class DonorsRepository {
   /// Update donor
   Future<DonorModel?> updateDonor(DonorModel donor) async {
     final response = await _apiClient.request(
-      '/api/donors/donors/${donor.id}',
+      '/donors/donors/${donor.id}',
       Method.put,
       data: donor.toJson(),
     );
@@ -73,7 +73,7 @@ class DonorsRepository {
   /// Delete donor
   Future<bool> deleteDonor(String donorId) async {
     final response = await _apiClient.request(
-      '/api/donors/donors/$donorId',
+      '/donors/donors/$donorId',
       Method.delete,
       data: {},
     );

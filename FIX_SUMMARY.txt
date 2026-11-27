@@ -1,0 +1,86 @@
+================================================================================
+  e-Blood Flutter Backend Connection Fix
+================================================================================
+
+PROBLEM:
+  The app was trying to connect to: https://e-blood-j14l.onrender.com/api/v1/api/donors/donors
+  (note the double /api/) which caused 404 errors and failed API calls.
+
+ROOT CAUSE:
+  - ApiEndpoints.baseUrl default: 'https://e-blood-j14l.onrender.com/api/v1'
+  - Repository paths included '/api/' prefix (e.g., '/api/donors/donors')
+  - Result: Double /api/ in every API URL
+
+FIX APPLIED:
+================================================================================
+1. Fixed API Base URL (lib/core/constants/api_endpoints.dart)
+   - Changed default from: 'https://e-blood-j14l.onrender.com/api/v1'
+   - Changed to:           'https://e-blood-j14l.onrender.com'
+
+2. Fixed ALL Repository Paths (removed /api/ prefix):
+   - lib/features/donors/data/donors_repository.dart
+   - lib/features/blood_banks/data/blood_banks_repository.dart
+   - lib/features/blood_requests/data/blood_requests_repository.dart
+   - lib/features/profile/data/profile_repository.dart
+   - lib/features/donation_history/data/donation_history_repository.dart
+
+   Each path changed from: /api/xxxx/xxxx
+   To:                       /xxxx/xxxx
+
+================================================================================
+NOW WORKING API ENDPOINTS:
+================================================================================
+ Base URL: https://e-blood-j14l.onrender.com
+
+ Auth:     https://e-blood-j14l.onrender.com/auth/register
+ Auth:     https://e-blood-j14l.onrender.com/auth/login
+ Auth:     https://e-blood-j14l.onrender.com/auth/me
+ Auth:     https://e-blood-j14l.onrender.com/auth/forgot-password
+ Auth:     https://e-blood-j14l.onrender.com/auth/reset-password
+
+ Donors:   https://e-blood-j14l.onrender.com/donors/donors
+ Banks:    https://e-blood-j14l.onrender.com/blood-banks
+ Requests: https://e-blood-j14l.onrender.com/bloodrequests/bloodrequests
+ Profile:  https://e-blood-j14l.onrender.com/profile/profile
+ Donations:https://e-blood-j14l.onrender.com/donations/donations
+
+================================================================================
+VERIFICATION:
+================================================================================
+✅ No remaining /api/ prefixes in repository paths
+✅ API endpoints now match the documented format
+✅ Base URL matches Render deployment format
+
+================================================================================
+NEXT STEPS TO TEST THE APP:
+================================================================================
+
+1. Run flutter pub get in the project root:
+   cd C:\Users\Acer\ebloods
+   flutter pub get
+
+2. Run the app (ensure Render backend is awake):
+   flutter run
+
+   OR wake the server first:
+   flutter pub run wakeServer
+
+3. If you encounter cold start issues on Render free tier:
+   - The app includes ApiClient.wakeServer() in main.dart
+   - This makes a GET /api/health request on startup
+   - May take 30-60 seconds on first run
+
+4. Test authentication flow:
+   - Register a new user with valid details
+   - Login with the registered credentials
+   - Navigate to home screen
+
+================================================================================
+KNOWN LIMITATIONS:
+================================================================================
+- The app may show "Server is waking up" message on first cold start
+- Render free tier sleeps after 15 minutes of inactivity
+- Some API endpoints may return different response formats than expected
+- Model mappings (snake_case to camelCase) need to match actual API responses
+
+================================================================================

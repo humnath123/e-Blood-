@@ -66,7 +66,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void _onLoginSubmitted() async {
     if (_formKey.currentState!.validate()) {
       final success = await ref.read(authProvider.notifier).login(
-            identifier: _emailController.text.trim(),
+            email: _emailController.text.trim(),
             password: _passwordController.text,
           );
       if (success && mounted) {

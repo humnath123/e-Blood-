@@ -7,7 +7,7 @@ class DonationHistoryRepository {
   /// Get all donation history
   Future<List<DonationHistoryModel>> getAllDonationHistory() async {
     final response = await _apiClient.request(
-      '/api/donations/donations',
+      '/donations/donations',
       Method.get,
       data: {},
     );
@@ -25,7 +25,7 @@ class DonationHistoryRepository {
   /// Get donation history by ID
   Future<DonationHistoryModel?> getDonationHistoryById(String id) async {
     final response = await _apiClient.request(
-      '/api/donations/donations/$id',
+      '/donations/donations/$id',
       Method.get,
       data: {},
     );
@@ -40,7 +40,7 @@ class DonationHistoryRepository {
   /// Create a new donation history
   Future<DonationHistoryModel?> createDonationHistory(DonationHistoryModel donationHistory) async {
     final response = await _apiClient.request(
-      '/api/donations/donations',
+      '/donations/donations',
       Method.post,
       data: donationHistory.toJson(),
     );
@@ -55,7 +55,7 @@ class DonationHistoryRepository {
   /// Update donation history
   Future<DonationHistoryModel?> updateDonationHistory(String id, DonationHistoryModel donationHistory) async {
     final response = await _apiClient.request(
-      '/api/donations/donations/$id',
+      '/donations/donations/$id',
       Method.put,
       data: donationHistory.toJson(),
     );
@@ -70,7 +70,7 @@ class DonationHistoryRepository {
   /// Delete donation history
   Future<bool> removeDonationHistory(String id) async {
     final response = await _apiClient.request(
-      '/api/donations/donations/$id',
+      '/donations/donations/$id',
       Method.delete,
       data: {},
     );

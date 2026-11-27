@@ -8,7 +8,7 @@ class BloodRequestsRepository {
   Future<List<BloodRequestModel>> getAllBloodRequests(
       {String? status, String? bloodGroup, String? urgency}) async {
     final uri = Uri.parse(
-        '/api/bloodrequests/bloodrequests?'
+        '/bloodrequests/bloodrequests?'
         'status=${status ?? ''}'
         '&bloodGroup=${bloodGroup ?? ''}'
         '&urgency=${urgency ?? ''}');
@@ -31,7 +31,7 @@ class BloodRequestsRepository {
   /// Get blood request by ID
   Future<BloodRequestModel?> getBloodRequestById(String requestId) async {
     final response = await _apiClient.request(
-      '/api/bloodrequests/bloodrequests/$requestId',
+      '/bloodrequests/bloodrequests/$requestId',
       Method.get,
       data: {},
     );
@@ -46,7 +46,7 @@ class BloodRequestsRepository {
   /// Create a new blood request
   Future<BloodRequestModel?> createBloodRequest(BloodRequestModel bloodRequest) async {
     final response = await _apiClient.request(
-      '/api/bloodrequests/bloodrequests',
+      '/bloodrequests/bloodrequests',
       Method.post,
       data: bloodRequest.toJson(),
     );
@@ -61,7 +61,7 @@ class BloodRequestsRepository {
   /// Update blood request
   Future<BloodRequestModel?> updateBloodRequest(String requestId, BloodRequestModel bloodRequest) async {
     final response = await _apiClient.request(
-      '/api/bloodrequests/bloodrequests/$requestId',
+      '/bloodrequests/bloodrequests/$requestId',
       Method.put,
       data: bloodRequest.toJson(),
     );
@@ -76,7 +76,7 @@ class BloodRequestsRepository {
   /// Delete blood request
   Future<bool> deleteBloodRequest(String requestId) async {
     final response = await _apiClient.request(
-      '/api/bloodrequests/bloodrequests/$requestId',
+      '/bloodrequests/bloodrequests/$requestId',
       Method.delete,
       data: {},
     );

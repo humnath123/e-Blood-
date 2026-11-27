@@ -5,6 +5,7 @@ class UserModel {
   final String firstName;
   final String lastName;
   final String? phone;
+  final String? age;
   final String? role;
   final bool isActive;
   final bool isEmailVerified;
@@ -18,6 +19,7 @@ class UserModel {
     required this.firstName,
     required this.lastName,
     this.phone,
+    this.age,
     this.role,
     required this.isActive,
     required this.isEmailVerified,

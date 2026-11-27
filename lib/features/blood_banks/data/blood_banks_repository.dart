@@ -7,7 +7,7 @@ class BloodBanksRepository {
   /// Get all blood banks
   Future<List<BloodBankModel>> getAllBloodBanks({String? city, String? search}) async {
     final uri = Uri.parse(
-        '/api/bloodbank/bloodbanks?'
+        '/blood-banks?'
         'city=${city ?? ''}'
         '&search=${search ?? ''}');
     final response = await _apiClient.request(
@@ -29,7 +29,7 @@ class BloodBanksRepository {
   /// Get blood bank by ID
   Future<BloodBankModel?> getBloodBankById(String bankId) async {
     final response = await _apiClient.request(
-      '/api/bloodbank/bloodbanks/$bankId',
+      '/blood-banks/$bankId',
       Method.get,
       data: {},
     );
@@ -44,7 +44,7 @@ class BloodBanksRepository {
   /// Create a new blood bank
   Future<BloodBankModel?> createBloodBank(BloodBankModel bloodBank) async {
     final response = await _apiClient.request(
-      '/api/bloodbank/bloodbanks',
+      '/blood-banks',
       Method.post,
       data: bloodBank.toJson(),
     );
@@ -59,7 +59,7 @@ class BloodBanksRepository {
   /// Update blood bank
   Future<BloodBankModel?> updateBloodBank(BloodBankModel bloodBank) async {
     final response = await _apiClient.request(
-      '/api/bloodbank/bloodbanks/${bloodBank.id}',
+      '/blood-banks/${bloodBank.id}',
       Method.put,
       data: bloodBank.toJson(),
     );
@@ -74,7 +74,7 @@ class BloodBanksRepository {
   /// Delete blood bank
   Future<bool> deleteBloodBank(String bankId) async {
     final response = await _apiClient.request(
-      '/api/bloodbank/bloodbanks/$bankId',
+      '/blood-banks/$bankId',
       Method.delete,
       data: {},
     );

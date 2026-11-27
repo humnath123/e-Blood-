@@ -14,7 +14,6 @@ class ApiClient {
 
   ApiClient._internal() {
     _dio.options.baseUrl = ApiEndpoints.baseUrl;
-    // Increased timeouts to 60s to handle Render free-tier cold starts
     _dio.options.connectTimeout = const Duration(seconds: 60);
     _dio.options.receiveTimeout = const Duration(seconds: 60);
     _dio.options.sendTimeout = const Duration(seconds: 60);
@@ -45,6 +44,15 @@ class ApiClient {
         },
       ),
     );
+  }
+
+  /// Ping health endpoint on startup to wake up Render free tier container
+  static Future<void> wakeServer() async {
+    try {
+      await _instance._dio.get('/health').timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Ignore wake-up errors
+    }
   }
 
   Future<Map<String, dynamic>> request(
@@ -103,17 +111,31 @@ class ApiClient {
       }
 
       String message = 'Network error occurred. (Server waking up on Render)';
+
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.connectionError) {
+          e.type == DioExceptionType.sendTimeout) {
         message = 'Server is waking up from Render cold start. Please try again in 30 seconds.';
-      } else if (e.response?.data is Map) {
-        final errMap = Map<String, dynamic>.from(e.response!.data as Map);
-        message = errMap['message']?.toString() ?? message;
-      } else if (e.response?.data != null) {
-        message = e.response!.data.toString();
-      } else if (e.message != null && e.message!.isNotEmpty) {
-        message = e.message!;
+      } else if (e.response != null && e.response!.statusCode != null && e.response!.statusCode! >= 400) {
+        if (e.response?.data is Map) {
+          final errMap = Map<String, dynamic>.from(e.response!.data as Map);
+          message = errMap['message']?.toString() ?? errMap['error']?.toString() ?? 'Request failed (${e.response!.statusCode})';
+        } else if (e.response?.data != null) {
+          message = e.response!.data.toString();
+        } else {
+          message = 'Request failed with status ${e.response!.statusCode}';
+        }
+      } else {
+        if (e.response?.data is Map) {
+          final errMap = Map<String, dynamic>.from(e.response!.data as Map);
+          message = errMap['message']?.toString() ?? e.message ?? 'Connection error';
+        } else if (e.response?.data != null) {
+          message = e.response!.data.toString();
+        } else if (e.message != null && e.message!.isNotEmpty) {
+          message = e.message!;
+        } else {
+          message = 'Connection error';
+        }
       }
 
       return {
@@ -137,6 +159,7 @@ class ApiClient {
     required String lastName,
     required String password,
     String? phone,
+    String? age,
     String? role,
   }) async {
     return request(
@@ -147,8 +170,11 @@ class ApiClient {
         'username': username,
         'firstName': firstName,
         'lastName': lastName,
+        'first_name': firstName,
+        'last_name': lastName,
         'password': password,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
+        if (age != null && age.isNotEmpty) 'age': age,
         if (role != null && role.isNotEmpty) 'role': role,
       },
     );
@@ -187,14 +213,16 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> login({
-    required String identifier,
+    required String email,
     required String password,
   }) async {
     return request(
       ApiEndpoints.login,
       Method.post,
       data: {
-        'identifier': identifier,
+        'email': email,
+        'identifier': email,
+        'username': email,
         'password': password,
       },
     );

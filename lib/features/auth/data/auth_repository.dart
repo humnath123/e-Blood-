@@ -5,11 +5,11 @@ class AuthRepository {
   final ApiClient _apiClient = ApiClient();
 
   Future<Map<String, dynamic>> login({
-    required String identifier,
+    required String email,
     required String password,
   }) async {
     return _apiClient.login(
-      identifier: identifier,
+      email: email,
       password: password,
     );
   }
@@ -21,6 +21,7 @@ class AuthRepository {
     required String lastName,
     required String password,
     String? phone,
+    String? age,
     String? role,
   }) async {
     return _apiClient.register(
@@ -30,6 +31,7 @@ class AuthRepository {
       lastName: lastName,
       password: password,
       phone: phone,
+      age: age,
       role: role,
     );
   }

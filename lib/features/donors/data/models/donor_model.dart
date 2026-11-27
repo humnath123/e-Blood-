@@ -5,6 +5,7 @@ class DonorModel {
   final String email;
   final String phone;
   final String bloodGroup;
+  final String? age;
   final String lastDonationDate;
   final String? lastDonationLocation;
   final int totalDonations;
@@ -21,6 +22,7 @@ class DonorModel {
     required this.bloodGroup,
     required this.lastDonationDate,
     this.lastDonationLocation,
+    this.age,
     required this.totalDonations,
     required this.isActive,
     required this.createdAt,
