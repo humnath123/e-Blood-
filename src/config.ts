@@ -21,6 +21,7 @@ const envSchema = z.object({
   ORACLE_CONNECT_STRING: z.string().min(1).optional(),
   DB_USER: z.string().min(1).optional(),
   DB_PASSWORD: z.string().min(1).optional(),
+  DB_CONNECT_STRING: z.string().min(1).optional(),
   DB_CONNECTION_STRING: z.string().min(1).optional(),
   ORACLE_POOL_MIN: z.coerce.number().default(2),
   ORACLE_POOL_MAX: z.coerce.number().default(10),
@@ -63,7 +64,7 @@ const normalizedEnv = {
   ...env,
   ORACLE_USER: env.ORACLE_USER ?? env.DB_USER,
   ORACLE_PASSWORD: env.ORACLE_PASSWORD ?? env.DB_PASSWORD,
-  ORACLE_CONNECT_STRING: env.ORACLE_CONNECT_STRING ?? env.DB_CONNECTION_STRING,
+  ORACLE_CONNECT_STRING: env.ORACLE_CONNECT_STRING ?? env.DB_CONNECT_STRING ?? env.DB_CONNECTION_STRING,
 };
 
 export default normalizedEnv;

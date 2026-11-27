@@ -27,11 +27,12 @@ import { errorHandler } from "./middleware/error";
 import { authenticate } from "./middleware/auth";
 import { setFacilityId } from "./middleware/facility";
 import { swaggerDocument } from "./swagger";
+import env from "./config";
 
 const app: Application = express();
 let server: any;
-const port: number = 3000;
-const corsOrigins: string = "*";
+const port: number = env.PORT;
+const corsOrigins: string = env.CORS_ORIGINS;
 
 // Trust first proxy for IP detection
 app.set("trust proxy", 1);
@@ -75,6 +76,7 @@ const authLimiter = rateLimit({
 });
 
 app.use("/api/v1/auth", authLimiter);
+app.use("/auth", authLimiter);
 
 // Request logging middleware - logs method, path, and status code
 app.use((req: Request, res: Response, next) => {
@@ -142,6 +144,9 @@ app.use("/api/v1", async (req: Request, res: Response, next) => {
 
 // Auth routes
 app.use("/api/v1/auth", authRoutes);
+
+// Compatibility aliases for clients that omit the /api/v1 prefix.
+app.use("/auth", authRoutes);
 
 // Profile routes
 app.use("/api/v1/me", authenticate, profileRoutes);
