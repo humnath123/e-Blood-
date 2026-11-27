@@ -166,12 +166,38 @@ app.use("/api/v1/donors", authenticate, donorRoutes);
 app.use("/api/v1/blood-banks", authenticate, bloodBankRoutes);
 app.use("/api/v1/notifications", authenticate, notificationRoutes);
 
-// Root health check
+// Root health check (also accessible at /api/v1/health via the prefix router)
 app.get("/", (_req: Request, res: Response) => {
   res.json({
     success: true,
     message: "eBlood API is running",
   });
+});
+
+// API v1 health check
+app.get("/api/v1/health", async (req: Request, res: Response) => {
+  try {
+    const pool = await getPool();
+    const connection = await pool.getConnection();
+    try {
+      const result = await connection.execute("SELECT 1 AS test FROM dual");
+      const isConnected = result.rows.length > 0;
+      res.json({
+        success: true,
+        status: isConnected ? "healthy" : "disconnected",
+        database: isConnected ? "connected" : "disconnected",
+      });
+    } finally {
+      await connection.close();
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({
+      success: false,
+      status: "database unavailable",
+      error: { code: "DB_UNAVAILABLE", message: "Database unavailable" },
+    });
+  }
 });
 
 // 404 for api v1 (terminal catch-all: any /api/v1 path not matched above)

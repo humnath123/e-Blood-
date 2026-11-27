@@ -191,7 +191,7 @@ router.post("/", async (req: Request, res: Response) => {
         hospitals: hospitals,
         donors: donors,
       },
-      error: null,
+      message: "Search completed successfully",
     });
 
   } catch (err) {

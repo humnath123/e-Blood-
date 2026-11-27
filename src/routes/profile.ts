@@ -84,7 +84,7 @@ router.get("/", async (req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       data: userResponse,
-      error: null,
+      message: "Profile retrieved successfully",
     });
   } catch (err) {
     console.error("Get profile error:", err);
@@ -224,7 +224,7 @@ router.patch("/", async (req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       data: userResponse,
-      error: null,
+      message: "Profile retrieved successfully",
     });
   } catch (err) {
     console.error("Update profile error:", err);

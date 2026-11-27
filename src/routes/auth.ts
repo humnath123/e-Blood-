@@ -239,10 +239,20 @@ router.post("/register", async (req: Request, res: Response) => {
     res.status(201).json({
       success: true,
       data: {
-        ...userResponse,
-        accessToken,
-        refreshToken,
+        token: accessToken,
+        user: {
+          id: userId,
+          email: isPhone ? null : identifier,
+          username: isPhone ? `user_${identifier.slice(-4)}` : identifier.split("@")[0],
+          firstName: "",
+          lastName: "",
+          isActive: 1,
+          isEmailVerified: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
       },
+      message: "Registration successful",
       error: null,
     });
   } catch (err) {
@@ -352,10 +362,20 @@ router.post("/login", async (req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       data: {
-        ...userResponse,
-        accessToken,
-        refreshToken,
+        token: accessToken,
+        user: {
+          id: userId,
+          email: isPhone ? null : user.EMAIL ?? user.email,
+          username: user.USERNAME ?? user.username,
+          firstName: "",
+          lastName: "",
+          isActive: Number(user.IS_ACTIVE ?? user.is_active),
+          isEmailVerified: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
       },
+      message: "Login successful",
       error: null,
     });
   } catch (err) {

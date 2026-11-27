@@ -159,7 +159,7 @@ router.get("/", async (req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       data: { requests: camelRequests },
-      error: null,
+      message: "Requests retrieved successfully",
     });
   } catch (err) {
     console.error("Get requests error:", err);
@@ -210,7 +210,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       data: { request: camelRequest },
-      error: null,
+      message: "Blood request retrieved successfully",
     });
   } catch (err) {
     console.error("Get request error:", err);
