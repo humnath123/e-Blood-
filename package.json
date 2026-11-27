@@ -12,6 +12,7 @@
     "db:migrate": "node scripts/migrate.js --dir db/migrations",
     "db:migrate:alerts": "node scripts/migrate.js --dir db/migrations --file 005_donor_alert_fields.sql",
     "db:seed": "node scripts/migrate.js --dir db/migrations --file 002_seed.sql",
+    "db:admin": "node scripts/create-admin.js",
     "db:reset": "node scripts/reset.js"
   },
   "keywords": [],
