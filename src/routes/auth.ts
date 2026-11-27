@@ -10,6 +10,7 @@ import env, { env as cfg } from "../config";
 import { createAuditLog } from "../middleware/audit";
 import { authenticate } from "../middleware/auth";
 import { sendRegistrationEmail } from "../services/registration-email";
+import logger from "../logger";
 
 // JWT config accessor (config.ts default-exports the normalized env object)
 const getJwtConfig = () => ({
@@ -127,18 +128,22 @@ router.post("/register", async (req: Request, res: Response) => {
     });
   }
 
+  logger.info("Registration attempt started", { identifier: result.data.identifier ? "[provided]" : result.data.email ? "[email]" : result.data.phone ? "[phone]" : undefined });
+
   const identifier = result.data.identifier ?? result.data.email ?? result.data.phone;
   const password = result.data.password;
   const role = result.data.role;
 
   try {
     // Check if user already exists (by email or phone)
+    logger.info("Checking existing user", { identifier: identifier ? "[provided]" : undefined });
     const existingUser = await runQueryOne(
       "SELECT user_id, password_hash, role FROM users WHERE email = :1 OR phone = :2",
       [identifier, identifier]
     );
 
     if (existingUser) {
+      logger.warn("Registration failed: user already exists", { identifier });
       return res.status(409).json({
         success: false,
         error: {
@@ -150,6 +155,7 @@ router.post("/register", async (req: Request, res: Response) => {
     }
 
     // Hash password
+    logger.info("Hashing password");
     const passwordHash = await hashPassword(password);
 
     // Determine if identifier is phone or email
@@ -203,6 +209,7 @@ router.post("/register", async (req: Request, res: Response) => {
     });
 
     if (!transactionResult.success) {
+      logger.error("Registration transaction failed", { error: transactionResult.error });
       return res.status(500).json({
         success: false,
         error: { code: "TRANSACTION_FAILED", message: "Failed to register user." },
@@ -219,10 +226,7 @@ router.post("/register", async (req: Request, res: Response) => {
         userName: identifier.split("@")[0],
         bloodGroup: result.data.bloodGroup,
       }).catch((error: unknown) => {
-        console.error(
-          "Registration email delivery failed:",
-          error instanceof Error ? error.message : "Unknown email error"
-        );
+        logger.error("Registration email delivery failed", { error: error instanceof Error ? error.message : String(error) });
       });
     }
 
@@ -255,8 +259,11 @@ router.post("/register", async (req: Request, res: Response) => {
       message: "Registration successful",
       error: null,
     });
-  } catch (err) {
-    console.error("Registration error:", err);
+  } catch (err: any) {
+    logger.error("Registration unexpected error", {
+      errorMessage: err.message,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+    });
     res.status(500).json({
       success: false,
       error: { code: "REGISTRATION_FAILED", message: "Registration failed. Please try again." },
@@ -269,6 +276,8 @@ router.post("/register", async (req: Request, res: Response) => {
 // POST /auth/login
 // ============================================================
 router.post("/login", async (req: Request, res: Response) => {
+  logger.info("Login attempt started", { identifier: req.body.identifier ? "[credential]" : undefined });
+
   const result = safeParseZod(loginSchema, req.body);
   if (result.error) {
     return res.status(400).json({
@@ -286,6 +295,8 @@ router.post("/login", async (req: Request, res: Response) => {
   try {
     const isPhone = /^9[78]\d{8}$/.test(identifier);
 
+    logger.info("Querying user by identifier", { identifier: identifier ? "[provided]" : undefined });
+
     const user: any = await runQueryOne(
       `SELECT user_id, password_hash, role, username, phone, email, is_active
        FROM users WHERE phone = :1 OR email = :2`,
@@ -293,6 +304,7 @@ router.post("/login", async (req: Request, res: Response) => {
     );
 
     if (!user) {
+      logger.warn("Login failed: user not found", { identifier: identifier ? "[provided]" : undefined });
       await createAuditLog(0, "login_failed", "users", 0, {
         identifierMasked: identifier.slice(0, 3) + "*****" + identifier.slice(-4),
       });
@@ -305,6 +317,7 @@ router.post("/login", async (req: Request, res: Response) => {
 
     // Check if account is active
     if (Number(user.IS_ACTIVE ?? user.is_active) === 0) {
+      logger.warn("Login failed: account disabled", { userId: user.user_id });
       return res.status(401).json({
         success: false,
         error: { code: "ACCOUNT_DISABLED", message: "Account is disabled." },
@@ -316,6 +329,7 @@ router.post("/login", async (req: Request, res: Response) => {
     const passwordValid = await comparePassword(password, user.PASSWORD_HASH ?? user.password_hash);
 
     if (!passwordValid) {
+      logger.warn("Login failed: invalid password", { userId: user.user_id });
       await createAuditLog(Number(user.USER_ID ?? user.user_id), "login_failed", "users", Number(user.USER_ID ?? user.user_id), {
         identifierMasked: identifier.slice(0, 3) + "*****" + identifier.slice(-4),
       });
@@ -378,8 +392,11 @@ router.post("/login", async (req: Request, res: Response) => {
       message: "Login successful",
       error: null,
     });
-  } catch (err) {
-    console.error("Login error:", err);
+  } catch (err: any) {
+    logger.error("Login unexpected error", {
+      errorMessage: err.message,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+    });
     res.status(500).json({
       success: false,
       error: { code: "LOGIN_FAILED", message: "Login failed. Please try again." },

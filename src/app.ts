@@ -73,6 +73,16 @@ const authLimiter = rateLimit({
 
 app.use("/api/v1/auth", authLimiter);
 
+// Request logging middleware - logs method, path, and status code
+app.use((req: Request, res: Response, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    console.log(`${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
+  });
+  next();
+});
+
 // Body parsing
 app.use(express.json({ limit: "10kb" }));
 
