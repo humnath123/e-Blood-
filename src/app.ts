@@ -53,12 +53,15 @@ app.use(
 );
 
 // CORS configuration
+// When credentials are needed (cookies, Authorization header),
+// the origin cannot be "*" - it must be a specific origin or true (reflects request origin)
 app.use(
   cors({
     origin: corsOrigins === "*" ? true : corsOrigins.split(","),
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type"],
     credentials: true,
+    exposedHeaders: ["Authorization"], // Expose Authorization header so frontend can read it in response
   })
 );
 

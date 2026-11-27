@@ -1,0 +1,13 @@
+CREATE TABLE users (
+    user_id NUMBER PRIMARY KEY,
+    username VARCHAR2(50) NOT NULL UNIQUE,
+    email VARCHAR2(100) NOT NULL UNIQUE,
+    phone VARCHAR2(20) NOT NULL UNIQUE,
+    password_hash VARCHAR2(255) NOT NULL,
+    role VARCHAR2(20) NOT NULL,
+    is_active NUMBER(1) DEFAULT 1,
+    blood_group VARCHAR2(5) DEFAULT 'O+',
+    is_available NUMBER(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
