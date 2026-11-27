@@ -166,6 +166,14 @@ app.use("/api/v1/donors", authenticate, donorRoutes);
 app.use("/api/v1/blood-banks", authenticate, bloodBankRoutes);
 app.use("/api/v1/notifications", authenticate, notificationRoutes);
 
+// Root health check
+app.get("/", (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    message: "eBlood API is running",
+  });
+});
+
 // 404 for api v1 (terminal catch-all: any /api/v1 path not matched above)
 app.use("/api/v1", (req: Request, res: Response) => {
   res.status(404).json({
