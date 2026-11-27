@@ -4,7 +4,7 @@ class ApiEndpoints {
   /// Base URL is provided via --dart-define=API_URL
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'https://e-blood-j14l.onrender.com',
+    defaultValue: 'https://e-blood-magw.onrender.com/api/v1',
   );
 
   /// API Key of backend provided via --dart-define=API_KEY (blank by default, connects later)
