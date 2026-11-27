@@ -14,9 +14,10 @@ class ApiClient {
 
   ApiClient._internal() {
     _dio.options.baseUrl = ApiEndpoints.baseUrl;
-    _dio.options.connectTimeout = const Duration(seconds: 30);
-    _dio.options.receiveTimeout = const Duration(seconds: 30);
-    _dio.options.sendTimeout = const Duration(seconds: 30);
+    // Increased timeouts to 60s to handle Render free-tier cold starts
+    _dio.options.connectTimeout = const Duration(seconds: 60);
+    _dio.options.receiveTimeout = const Duration(seconds: 60);
+    _dio.options.sendTimeout = const Duration(seconds: 60);
     _dio.options.headers['Content-Type'] = 'application/json';
 
     if (ApiEndpoints.apiKey.isNotEmpty) {
@@ -45,7 +46,6 @@ class ApiClient {
       ),
     );
   }
-
 
   Future<Map<String, dynamic>> request(
     String path,
@@ -102,8 +102,12 @@ class ApiClient {
         };
       }
 
-      String message = 'Network error occurred';
-      if (e.response?.data is Map) {
+      String message = 'Network error occurred. (Server waking up on Render)';
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        message = 'Server is waking up from Render cold start. Please try again in 30 seconds.';
+      } else if (e.response?.data is Map) {
         final errMap = Map<String, dynamic>.from(e.response!.data as Map);
         message = errMap['message']?.toString() ?? message;
       } else if (e.response?.data != null) {
