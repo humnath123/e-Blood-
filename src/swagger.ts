@@ -45,7 +45,7 @@ export const swaggerDocument = {
     version: "1.0.0",
     description: "Blood-finding application for Nepal",
   },
-  servers: [{ url: "/api/v1", description: "API v1" }],
+  servers: [{ url: "https://e-blood-magw.onrender.com", description: "Production API" }],
   components: {
     securitySchemes: {
       bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },

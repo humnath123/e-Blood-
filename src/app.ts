@@ -99,19 +99,16 @@ if (!fs.existsSync(swaggerPath)) {
   fs.mkdirSync(swaggerPath, { recursive: true });
 }
 fs.writeFileSync(path.join(swaggerPath, "swagger.json"), JSON.stringify(swaggerDoc, null, 2));
-app.get("/docs/swagger.json", (_req: Request, res: Response) => {
-  res.sendFile(path.join(swaggerPath, "swagger.json"));
-});
-app.get("/api/v1/openapi.json", (_req: Request, res: Response) => {
+app.get("/api-docs.json", (_req: Request, res: Response) => {
   res.setHeader("Content-Type", "application/json");
   res.send(JSON.stringify(swaggerDoc));
 });
-app.use("/docs", express.static(swaggerPath));
-app.use("/docs", swaggerUi.serve);
-app.get("/docs", swaggerUi.setup(swaggerDoc, {
+app.use("/api-docs", express.static(swaggerPath));
+app.use("/api-docs", swaggerUi.serve);
+app.get("/api-docs", swaggerUi.setup(swaggerDoc, {
   customSiteTitle: "eBlood API Documentation",
   swaggerOptions: {
-    url: "/api/v1/openapi.json",
+    url: "/api-docs.json",
     deepLinking: true,
   },
 }));
