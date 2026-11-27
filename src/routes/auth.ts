@@ -110,6 +110,30 @@ const safeParseZod = (schema: any, obj: any) => {
   return { data: result.data };
 };
 
+// Enhanced error handler for Oracle errors
+const handleOracleError = (err: any, defaultMsg: string) => {
+  if (err.code) {
+    switch (err.code) {
+      case "ORA-00001":
+        return { code: "CONSTRAINT_VIOLATION", message: "Duplicate entry. The resource already exists." };
+      case "ORA-02291":
+        return { code: "FOREIGN_KEY_VIOLATION", message: "Referenced resource does not exist." };
+      case "ORA-12514":
+      case "ORA-12541":
+        return { code: "DB_CONNECTION_ERROR", message: "Database connection error. Please try again later." };
+      case "ORA-01017":
+        return { code: "INVALID_CREDENTIALS", message: "Invalid username or password." };
+      case "ORA-01403":
+        return { code: "NOT_FOUND", message: "Resource not found." };
+      default:
+        if (err.message?.includes("unique constraint")) {
+          return { code: "CONSTRAINT_VIOLATION", message: "Duplicate entry." };
+        }
+    }
+  }
+  return { code: "DATABASE_ERROR", message: defaultMsg };
+};
+
 const router = Router();
 
 // ============================================================
@@ -264,9 +288,11 @@ router.post("/register", async (req: Request, res: Response) => {
       errorMessage: err.message,
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     });
+    // Handle Oracle-specific errors
+    const oracleError = handleOracleError(err, "Registration failed. Please try again.");
     res.status(500).json({
       success: false,
-      error: { code: "REGISTRATION_FAILED", message: "Registration failed. Please try again." },
+      error: { code: oracleError.code, message: oracleError.message },
       data: null,
     });
   }
@@ -397,9 +423,11 @@ router.post("/login", async (req: Request, res: Response) => {
       errorMessage: err.message,
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     });
+    // Handle Oracle-specific errors
+    const oracleError = handleOracleError(err, "Login failed. Please try again.");
     res.status(500).json({
       success: false,
-      error: { code: "LOGIN_FAILED", message: "Login failed. Please try again." },
+      error: { code: oracleError.code, message: oracleError.message },
       data: null,
     });
   }

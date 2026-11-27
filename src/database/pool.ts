@@ -83,8 +83,8 @@ export async function withConnection<T>(
 
 // Transaction helper - autoCommit false, explicit commit or rollback
 export async function withTransaction<T>(
-  fn: (conn: any) => Promise<{ success: boolean; result?: T; error?: string; orderId?: number }>
-): Promise<{ success: boolean; result?: T; error?: string; orderId?: number }> {
+  fn: (conn: any) => Promise<{ success: boolean; result?: T; error?: string; orderId?: number; message?: string }>
+): Promise<{ success: boolean; result?: T; error?: string; orderId?: number; message?: string }> {
   let connection: any | null = null;
   try {
     connection = await getConnection();
@@ -92,10 +92,20 @@ export async function withTransaction<T>(
 
     // Check if the result indicates success
     if (result.success === true || result.success === undefined) {
-      await connection.commit();
+      try {
+        await connection.commit();
+      } catch (commitErr) {
+        console.error("Transaction commit error:", commitErr);
+        await connection.rollback();
+        return { success: false, error: "COMMIT_FAILED", message: "Failed to commit transaction" };
+      }
       return { success: true, result: result.result, orderId: result.orderId };
     } else {
-      await connection.rollback();
+      try {
+        await connection.rollback();
+      } catch (rollbackErr) {
+        console.error("Transaction rollback error:", rollbackErr);
+      }
       return { success: false, result: result.result, error: result.error };
     }
   } catch (err) {
@@ -103,9 +113,10 @@ export async function withTransaction<T>(
       try {
         await connection.rollback();
       } catch (rollbackErr) {
-        console.error("Transaction rollback error:", rollbackErr);
+        console.error("Transaction rollback error in catch:", rollbackErr);
       }
     }
+    // Re-throw with context for the caller
     throw err;
   } finally {
     if (connection) {
