@@ -192,7 +192,7 @@ router.post("/register", async (req: Request, res: Response) => {
 
   const identifier = result.data.identifier ?? result.data.email ?? result.data.phone;
   const password = result.data.password;
-  const role = "PATIENT"; // Default role for registration; can be adjusted based on your app's logic
+  const role = "patient"; // Default role for registration; can be adjusted based on your app's logic
 
   try {
     // Check if user already exists (by email or phone)
