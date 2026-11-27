@@ -333,7 +333,10 @@ router.post("/register", async (req: Request, res: Response) => {
     });
     // Handle Oracle-specific errors
     const oracleError = handleOracleError(err, "Registration failed. Please try again.");
-    res.status(500).json({
+    // Map constraint violations (e.g. duplicate username/email/phone) to 409,
+    // not a generic 500, so clients can react correctly.
+    const status = oracleError.code === "CONSTRAINT_VIOLATION" ? 409 : 500;
+    res.status(status).json({
       success: false,
       error: { code: oracleError.code, message: oracleError.message },
       data: null,
