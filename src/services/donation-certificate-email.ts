@@ -27,78 +27,51 @@ function buildDonationCertificateEmailHtml(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>e-Blood Donation Appreciation</title>
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>e-Blood Donation Certificate</title>
 </head>
-<body style="margin: 0; padding: 0; background: #f4f6f8; font-family: Arial, Helvetica, sans-serif; line-height: 1.6;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 620px; margin: 0 auto; background: #ffffff; border: 1px solid #eaecf0; border-radius: 12px; overflow: hidden;">
-    
-    <!-- Header Section -->
+<body style="margin:0;padding:0;background:#f2f4f7;color:#101828;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f2f4f7;">
     <tr>
-      <td style="padding: 28px 32px; text-align: center; border-bottom: 1px solid #eaecf0;">
-        <!-- e-Blood Logo -->
-        <img src="cid:${certificateLogoCid}" alt="e-Blood Logo" style="display: block; width: 120px; height: auto; margin: 0 auto 12px;">
-        
-        <!-- Thin horizontal divider below logo -->
-        <hr style="border: 0; border-top: 1px solid #eaecf0; margin: 0 auto 24px; max-width: 40px;">
-        
-        <!-- Red uppercase section label -->
-        <h2 style="margin: 0; color: #E60023; font-size: 14; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-          BLOOD DONATION APPRECIATION
-        </h2>
+      <td align="center" style="padding:32px 12px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px;max-width:600px;background:#ffffff;border:1px solid #eaecf0;border-radius:12px;overflow:hidden;">
+          <tr><td style="height:5px;background:#c8102e;font-size:0;line-height:0;">&nbsp;</td></tr>
+          <tr>
+            <td align="center" style="padding:24px;">
+              <img src="cid:${certificateLogoCid}" width="176" alt="e-Blood - Connecting Donors. Saving Lives." style="display:block;width:176px;max-width:100%;height:auto;border:0;">
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px;border-top:1px solid #f2f4f7;">
+              <p style="margin:0 0 10px;color:#c8102e;font-size:12px;line-height:18px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">Donation certificate</p>
+              <h1 style="margin:0 0 20px;color:#101828;font-size:24px;line-height:32px;">Thank you for saving lives</h1>
+              <p style="margin:0 0 16px;color:#344054;font-size:15px;line-height:24px;">Dear ${safeName},</p>
+              <p style="margin:0 0 16px;color:#475467;font-size:14px;line-height:23px;">On behalf of e-Blood, we sincerely thank you for your generous blood donation. Your kindness and willingness to help people in need reflect the true spirit of humanity.</p>
+              <p style="margin:0 0 20px;color:#475467;font-size:14px;line-height:23px;">Your certificate of appreciation is attached to this email as a PDF. It recognizes your completed donation and records the following certificate ID:</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#fff8f8;border:1px solid #fecdca;border-radius:8px;">
+                <tr>
+                  <td style="padding:14px 16px;color:#b42318;font-size:13px;line-height:20px;font-weight:700;">Certificate ID: ${safeCertificateId}</td>
+                </tr>
+              </table>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:16px;background:#ecfdf3;border:1px solid #abefc6;border-radius:8px;">
+                <tr>
+                  <td style="padding:14px 16px;color:#027a48;font-size:13px;line-height:20px;font-weight:700;">Certificate issued successfully. Thank you for being a lifesaving donor.</td>
+                </tr>
+              </table>
+              <p style="margin:24px 0 0;color:#475467;font-size:14px;line-height:22px;">With heartfelt gratitude,<br><strong style="color:#101828;">Humnath Pokharel, Surav Bogati, and Prashant Syangtan</strong><br>CEOs, e-Blood</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 32px;background:#f9fafb;border-top:1px solid #eaecf0;">
+              <p style="margin:0;color:#667085;font-size:11px;line-height:17px;">Connecting Donors. Saving Lives.</p>
+              <p style="margin:8px 0 0;color:#98a2b3;font-size:10px;line-height:16px;">This is an automated certificate email. Please do not reply.</p>
+            </td>
+          </tr>
+        </table>
       </td>
     </tr>
-    
-    <!-- Main Content -->
-    <tr>
-      <td style="padding: 32px 32px 20px;">
-        
-        <!-- Large bold dark navy heading -->
-        <h1 style="margin: 0 0 24px; color: #1A1A2E; font-size: 28; font-weight: 700; line-height: 1.3;">
-          Thank You for Saving Lives
-        </h1>
-        
-        <!-- Appreciation message -->
-        <p style="margin: 0 0 20px; font-size: 16; color: #333333; line-height: 1.7;">
-          Dear ${safeName},
-        </p>
-        
-        <p style="margin: 0 0 20px; font-size: 16; color: #333333; line-height: 1.7;">
-          On behalf of e-Blood, we sincerely thank you for your generous blood donation. Your kindness, compassion, and willingness to help those in need reflect the true spirit of humanity. Your contribution makes a meaningful difference and brings hope to patients and families in our community.
-        </p>
-        
-        <!-- Certificate ID box -->
-        <p style="margin: 0 0 24px; padding: 12px 16px; background: #fff5f4; border-left: 3px solid #E60023; font-size: 14; color: #b42318;">
-          <strong>Certificate ID:</strong> ${safeCertificateId}
-        </p>
-        
-        <!-- Thank you paragraph -->
-        <p style="margin: 0 0 24px; font-size: 16; color: #333333; line-height: 1.7;">
-          Thank you for being part of our mission to connect donors and save lives. Your generosity inspires us to continue making a difference.
-        </p>
-        
-      </td>
-    </tr>
-    
-    <!-- Signature Section -->
-    <tr>
-      <td style="padding: 0 32px 32px;">
-        <p style="margin: 0 0 8px; font-size: 14; color: #666666; line-height: 1.6;">
-          With heartfelt gratitude,
-        </p>
-        <p style="margin: 0; font-size: 15; color: #1A1A2E; font-weight: 600; line-height: 1.6;">
-          Humnath Pokharel, Surav Bogati, and Prashant Syangtan
-        </p>
-        <p style="margin: 4px 0 0; font-size: 14; color: #666666; line-height: 1.6;">
-          CEOs, e-Blood
-        </p>
-        <p style="margin: 12px 0 0; font-size: 13; color: #666666; line-height: 1.6;">
-          Connecting Donors. Saving Lives.
-        </p>
-      </td>
-    </tr>
-    
   </table>
-  
 </body>
 </html>`;
 }

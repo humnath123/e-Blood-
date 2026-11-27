@@ -5,6 +5,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const zlib = require("node:zlib");
 const { buildDonationCertificate } = require("../dist/services/donation-certificate");
+const {
+  buildDonationCertificateEmail,
+  certificateLogoCid,
+} = require("../dist/services/donation-certificate-email");
 
 const outputDirectory = path.resolve(__dirname, "..", "test-output");
 const outputPath = path.join(outputDirectory, "certificate.pdf");
@@ -169,6 +173,18 @@ function assertCertificateDetails(inspected, data) {
 
 async function main() {
   fs.mkdirSync(outputDirectory, { recursive: true });
+
+  const certificateEmail = buildDonationCertificateEmail(
+    '<script>Test Donor</script>',
+    'EBLD-DON-TEST'
+  );
+  assert.match(certificateEmail.subject, /Donation Certificate/i);
+  assert.match(certificateEmail.html, /cid:eblood-certificate-logo/);
+  assert.match(certificateEmail.html, /&lt;script&gt;Test Donor&lt;\/script&gt;/);
+  assert.doesNotMatch(certificateEmail.html, /<script>Test Donor/);
+  assert.match(certificateEmail.html, /Certificate ID: EBLD-DON-TEST/);
+  assert.equal(certificateLogoCid, "eblood-certificate-logo");
+  console.log("PASS certificate email: responsive e-Blood layout, inline logo, escaped donor name, and certificate ID.");
 
   const samplePdf = await buildDonationCertificate(sample);
   fs.writeFileSync(outputPath, samplePdf);
