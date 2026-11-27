@@ -20,30 +20,66 @@ const getJwtConfig = () => ({
   refreshExpires: (cfg as any).JWT_REFRESH_EXPIRES,
 });
 
+// Treat blank strings from clients (Flutter/Swagger often send "" for unused
+// optional fields) as "not provided" so optional validators don't reject them.
+const blankToUndefined = (value: any) =>
+  typeof value === "string" && value.trim() === "" ? undefined : value;
+
+// Normalise the raw request body before validation:
+// - trim/blank -> undefined for every field
+// - derive `identifier` from email/phone when the client omits it
+const normalizeRegisterBody = (body: any) => {
+  if (!body || typeof body !== "object") return body;
+  const out: Record<string, any> = {};
+  for (const [key, value] of Object.entries(body)) {
+    out[key] = blankToUndefined(value);
+  }
+  if (!out.identifier) {
+    out.identifier = out.email ?? out.phone;
+  }
+  return out;
+};
+
 // Validation schemas
-const registerSchema = z.object({
-  identifier: z.string().optional(),
-  email: z.string().email("Invalid email").optional(),
-  username: z.string().min(1).optional(),
-  phone: z.string().regex(/^9[78]\d{8}$/).optional(),
-  bloodGroup: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]).optional(),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["patient", "donor", "bloodbank_staff", "hospital_staff", "ngo", "admin"]),
-}).refine(
-  (value) => Boolean(value.identifier || value.email || value.phone),
-  "identifier, email or phone is required"
-).refine(
-  (value) => Boolean(value.identifier || (value.email && value.username)),
-  "email and username are required"
+const registerSchema = z.preprocess(
+  normalizeRegisterBody,
+  z.object({
+    identifier: z.string().min(1).optional(),
+    email: z.string().email("Invalid email").optional(),
+    username: z.string().min(1).optional(),
+    phone: z.string().regex(/^9[78]\d{8}$/).optional(),
+    bloodGroup: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]).optional(),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    role: z.enum(["patient", "donor", "bloodbank_staff", "hospital_staff", "ngo", "admin"]),
+  }).refine(
+    (value) => Boolean(value.identifier || value.email || value.phone),
+    "identifier, email or phone is required"
+  ).refine(
+    (value) => Boolean(value.identifier || (value.email && value.username)),
+    "email and username are required"
+  )
 );
 
-const loginSchema = z.object({
-  identifier: z.string().min(1, "Identifier required").refine(
-    (val) => /^9[78]\d{8}$/.test(val) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val),
-    "Identifier must be a valid Nepali phone (starting 97 or 98) or email"
-  ),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
+const loginSchema = z.preprocess(
+  (body: any) => {
+    if (!body || typeof body !== "object") return body;
+    const out: Record<string, any> = {};
+    for (const [key, value] of Object.entries(body)) {
+      out[key] = blankToUndefined(value);
+    }
+    if (!out.identifier) {
+      out.identifier = out.email ?? out.phone;
+    }
+    return out;
+  },
+  z.object({
+    identifier: z.string().min(1, "Identifier required").refine(
+      (val) => /^9[78]\d{8}$/.test(val) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val),
+      "Identifier must be a valid Nepali phone (starting 97 or 98) or email"
+    ),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+  })
+);
 
 // Password hashing helper
 const hashPassword = async (password: string): Promise<string> => {

@@ -121,15 +121,20 @@ app.get("/api-docs.json", (_req: Request, res: Response) => {
   res.send(JSON.stringify(swaggerDoc));
 });
 const serveSwagger = (basePath: string) => {
-  app.use(`${basePath}`, express.static(swaggerPath));
-  app.use(`${basePath}`, swaggerUi.serve);
-  app.get(`${basePath}`, swaggerUi.setup(swaggerDoc, {
-    customSiteTitle: "eBlood API Documentation",
-    swaggerOptions: {
-      url: "/api-docs.json",
-      deepLinking: true,
-    },
-  }));
+  // Mount as middleware (not app.get) so BOTH "/docs" and "/docs/" resolve,
+  // along with the static asset routes Swagger UI requests. Using app.get(basePath)
+  // only matched the exact path and produced "Cannot GET /docs/" on the trailing slash.
+  app.use(
+    basePath,
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerDoc, {
+      customSiteTitle: "eBlood API Documentation",
+      swaggerOptions: {
+        url: "/api-docs.json",
+        deepLinking: true,
+      },
+    })
+  );
 };
 serveSwagger("/api-docs");
 serveSwagger("/docs");
