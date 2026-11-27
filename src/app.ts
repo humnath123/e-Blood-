@@ -6,8 +6,7 @@ import rateLimit from "express-rate-limit";
 import * as swaggerUi from "swagger-ui-express";
 import * as fs from "fs";
 import * as path from "path";
-import env from "./config";
-import { getPool, withConnection, withTransaction, runQuery, runQueryOne } from "./database/pool";
+import { initDb, getPool, withConnection, withTransaction, runQuery, runQueryOne } from "./database/pool";
 import { toCamelCase } from "./database/mapper";
 import authRoutes from "./routes/auth";
 import profileRoutes from "./routes/profile";
@@ -30,8 +29,9 @@ import { setFacilityId } from "./middleware/facility";
 import { swaggerDocument } from "./swagger";
 
 const app: Application = express();
-const port: number = env.PORT;
-const corsOrigins: string = env.CORS_ORIGINS;
+let server: any;
+const port: number = 3000;
+const corsOrigins: string = "*";
 
 // Trust first proxy for IP detection
 app.set("trust proxy", 1);
@@ -101,8 +101,8 @@ app.get("/docs", swaggerUi.setup(swaggerDoc, {
   },
 }));
 
-// Database health-check endpoint
-app.get("/api/health/db", async (req: Request, res: Response) => {
+// Health check - database connectivity
+app.get('/health', async (req: Request, res: Response) => {
   try {
     const pool = await getPool();
     const connection = await pool.getConnection();
@@ -110,62 +110,15 @@ app.get("/api/health/db", async (req: Request, res: Response) => {
       const result = await connection.execute("SELECT 1 AS test FROM dual");
       const isConnected = result.rows.length > 0;
       res.json({
-        success: true,
-        data: {
-          status: isConnected ? "ok" : "disconnected",
-          database: isConnected ? "connected" : "disconnected",
-        },
+        status: isConnected ? "ok" : "disconnected",
+        database: isConnected ? "connected" : "disconnected",
       });
     } finally {
       await connection.close();
     }
   } catch (err) {
-    console.error("Health check database error:", err);
-    res.status(503).json({
-      success: false,
-      data: {
-        status: "ok",
-        database: "disconnected",
-      },
-      error: {
-        code: "DB_CONNECTION_FAILED",
-        message: "Database connection failed during health check",
-      },
-    });
-  }
-});
-
-// Health check - NO authentication
-app.get("/api/v1/health", async (req: Request, res: Response) => {
-  try {
-    const pool = await getPool();
-    const connection = await pool.getConnection();
-    try {
-      const result = await connection.execute("SELECT 1 AS test FROM dual");
-      const isConnected = result.rows.length > 0;
-      res.json({
-        success: true,
-        data: {
-          status: isConnected ? "ok" : "disconnected",
-          database: isConnected ? "connected" : "disconnected",
-        },
-      });
-    } finally {
-      await connection.close();
-    }
-  } catch (err) {
-    console.error("Health check database error:", err);
-    res.status(503).json({
-      success: false,
-      data: {
-        status: "ok",
-        database: "disconnected",
-      },
-      error: {
-        code: "DB_CONNECTION_FAILED",
-        message: "Database connection failed during health check",
-      },
-    });
+    console.error(err.message);
+    res.status(500).json({ status: 'database unavailable' });
   }
 });
 
@@ -228,24 +181,14 @@ app.use("/api/v1", (req: Request, res: Response) => {
 // Global error handler
 app.use(errorHandler);
 
-// Start server
-let server: any;
-
+// Start server after database is ready
 async function startServer() {
   try {
-    // Validate Oracle connection on startup
-    const pool = await getPool();
-    try {
-      const connection = await pool.getConnection();
-      await connection.execute("SELECT 1 AS test FROM dual");
-      await connection.close();
-      console.log("Oracle database connection verified");
-    } catch (connErr) {
-      console.error("Oracle database connection failed:", connErr);
-      process.exit(1);
-    }
+    // Initialize database connection
+    await initDb();
+    console.log("Database initialized successfully");
 
-    server = app.listen(port, "0.0.0.0", () => {
+    server = app.listen(port, '0.0.0.0', () => {
       console.log(`eBlood server running on port ${port}`);
       console.log(`Local URL: http://localhost:${port}/api/v1/health`);
       console.log(`LAN URL: http://0.0.0.0:${port}/api/v1/health`);
@@ -269,13 +212,13 @@ async function startServer() {
       });
     });
   } catch (err) {
-    console.error("Failed to start server:", err);
+    console.error('Database startup failed:', err.message);
     process.exit(1);
   }
 }
 
-export { app };
-
 if (require.main === module) {
   startServer();
 }
+
+export { app };

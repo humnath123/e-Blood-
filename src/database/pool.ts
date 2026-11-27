@@ -1,45 +1,55 @@
 // Oracle database pool and connection management
-import oracledb from "oracledb";
-import env from "../config";
+require('dotenv').config();
+const oracledb = require('oracledb');
 
-// Pool type from oracledb
-export type PoolType = oracledb.Pool;
-export type SessionType = oracledb.Connection;
+oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
-let pool: PoolType | null = null;
+let pool: any | null = null;
 let shutdownHandlerRegistered = false;
 
-export async function getPool(): Promise<PoolType> {
+export async function initDb(): Promise<void> {
+  const required = ['DB_USER', 'DB_PASSWORD', 'DB_CONNECT_STRING'];
+  const missing = required.filter((key) => !process.env[key]);
+  if (missing.length) {
+    throw new Error(`Missing environment variables: ${missing.join(', ')}`);
+  }
+  pool = await oracledb.createPool({
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    connectString: process.env.DB_CONNECT_STRING,
+    poolMin: 0,
+    poolMax: 4,
+    poolIncrement: 1
+  });
+  // Health check query to verify connection
+  const conn = await oracledb.getConnection();
+  try {
+    await conn.execute('SELECT 1 FROM dual');
+  } finally {
+    await conn.close();
+  }
+}
+
+export async function getPool(): Promise<any> {
   if (pool) return pool;
 
-  // Pool options - oracledb.PoolOptions
-  const options: oracledb.PoolAttributes = {
-    user: env.ORACLE_USER,
-    password: env.ORACLE_PASSWORD,
-    connectString: env.ORACLE_CONNECT_STRING,
-    poolMin: env.ORACLE_POOL_MIN,
-    poolMax: env.ORACLE_POOL_MAX,
-    // Enable auto-commit off by default for transaction control
-    // We'll manage transactions explicitly
-  };
-
-  pool = await oracledb.createPool(options);
-
-  if (!shutdownHandlerRegistered) {
-    shutdownHandlerRegistered = true;
-    process.on("beforeExit", async () => {
-      try {
-        await closePool();
-      } catch (err) {
-        console.error("Error closing Oracle pool:", err);
-      }
-    });
+  const required = ['DB_USER', 'DB_PASSWORD', 'DB_CONNECT_STRING'];
+  const missing = required.filter((key) => !process.env[key]);
+  if (missing.length) {
+    throw new Error(`Missing environment variables: ${missing.join(', ')}`);
   }
-
+  pool = await oracledb.createPool({
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    connectString: process.env.DB_CONNECT_STRING,
+    poolMin: 0,
+    poolMax: 4,
+    poolIncrement: 1
+  });
   return pool;
 }
 
-export async function closePool() {
+export async function closePool(): Promise<void> {
   const activePool = pool;
   pool = null;
   if (activePool) await activePool.close(0);
@@ -53,9 +63,9 @@ export async function getConnection() {
 
 // Helper to always release connection in finally
 export async function withConnection<T>(
-  fn: (conn: SessionType) => Promise<T>
+  fn: (conn: any) => Promise<T>
 ): Promise<T> {
-  let connection: SessionType | null = null;
+  let connection: any | null = null;
   try {
     connection = await getConnection();
     return await fn(connection);
@@ -73,9 +83,9 @@ export async function withConnection<T>(
 
 // Transaction helper - autoCommit false, explicit commit or rollback
 export async function withTransaction<T>(
-  fn: (conn: SessionType) => Promise<{ success: boolean; result?: T; error?: string; orderId?: number }>
+  fn: (conn: any) => Promise<{ success: boolean; result?: T; error?: string; orderId?: number }>
 ): Promise<{ success: boolean; result?: T; error?: string; orderId?: number }> {
-  let connection: SessionType | null = null;
+  let connection: any | null = null;
   try {
     connection = await getConnection();
     const result = await fn(connection);
@@ -108,48 +118,33 @@ export async function withTransaction<T>(
   }
 }
 
-// Oracle requires INSERT/UPDATE/DELETE ... RETURNING to use an INTO clause with
-// OUT binds. Many route handlers pass a bare "RETURNING col1, col2" and expect
-// the row back. This helper rewrites such statements to add the INTO clause and
-// OUT bind descriptors, inferring a bind type from each column name.
-function rewriteReturning(
+// Query runner for simple queries
+export async function runQuery<T = Record<string, any>>(
   sql: string,
-  binds: any
-): { sql: string; binds: any; cols: string[]; rewritten: boolean; positional: boolean; baseCount: number } {
-  const skip = { sql, binds, cols: [] as string[], rewritten: false, positional: false, baseCount: 0 };
-  if (!/\bRETURNING\b/i.test(sql)) return skip;
-  const match = sql.match(/RETURNING\s+([\s\S]+?)\s*$/i);
-  if (!match) return skip;
-  // Already has an INTO clause inside RETURNING (e.g. "RETURNING x INTO :x")
-  if (/\bINTO\b/i.test(match[1])) return skip;
+  binds: any[] | Record<string, any> = [],
+  options: { autoCommit?: boolean } = {}
+): Promise<T[]> {
+  const result: any = await withConnection(async (conn: any) => {
+    const execResult: any = await (conn as any).execute(sql, binds, {
+      outFormat: oracledb.OUT_FORMAT_OBJECT,
+      autoCommit: options.autoCommit ?? true,
+      // Return CLOB columns as plain strings instead of Lob objects
+      fetchAsString: [oracledb.CLOB],
+    });
 
-  const cols = match[1]
-    .split(",")
-    .map((c: string) => c.trim())
-    .filter(Boolean);
-  if (cols.length === 0) return skip;
+    return await resolveLobValues(execResult.rows || []);
+  });
 
-  const typeFor = (col: string): any => {
-    if (/_at$|_date$/i.test(col)) return oracledb.DATE;
-    if (/(^id$|_id$|units|points|amount|capacity|stock|latitude|longitude|\blat\b|\blon\b|discount|count|total|is_active|is_verified|created_by)/i.test(col)) {
-      return oracledb.NUMBER;
-    }
-    return oracledb.STRING;
-  };
+  return result || [];
+}
 
-  if (Array.isArray(binds)) {
-    const base = binds.length;
-    const into = cols.map((_: string, i: number) => `:${base + i + 1}`).join(", ");
-    const newSql = sql.replace(/RETURNING\s+[\s\S]+?\s*$/i, `RETURNING ${cols.join(", ")} INTO ${into}`);
-    const outBinds = cols.map((c: string) => ({ dir: oracledb.BIND_OUT, type: typeFor(c) }));
-    return { sql: newSql, binds: [...binds, ...outBinds], cols, rewritten: true, positional: true, baseCount: base };
-  }
-
-  const into = cols.map((c: string) => `:${c}`).join(", ");
-  const newSql = sql.replace(/RETURNING\s+[\s\S]+?\s*$/i, `RETURNING ${cols.join(", ")} INTO ${into}`);
-  const outBinds: Record<string, any> = {};
-  for (const c of cols) outBinds[c] = { dir: oracledb.BIND_OUT, type: typeFor(c) };
-  return { sql: newSql, binds: Object.assign({}, binds, outBinds), cols, rewritten: true, positional: false, baseCount: 0 };
+// Query runner with single result
+export async function runQueryOne<T = Record<string, any>>(
+  sql: string,
+  binds: any[] = []
+): Promise<T | null> {
+  const rows: T[] = await runQuery(sql, binds);
+  return rows.length > 0 ? rows[0] : null;
 }
 
 // Convert any oracledb Lob column values (CLOB/BLOB) to plain strings/buffers so
@@ -181,48 +176,3 @@ async function resolveLobValues(rows: any[]): Promise<any[]> {
   );
 }
 
-// Query runner for simple queries
-export async function runQuery<T = Record<string, any>>(
-  sql: string,
-  binds: any[] | Record<string, any> = [],
-  options: { autoCommit?: boolean } = {}
-): Promise<T[]> {
-  const rw = rewriteReturning(sql, binds);
-
-  const result: any = await withConnection(async (conn) => {
-    const execResult: any = await (conn as any).execute(rw.sql, rw.binds, {
-      outFormat: oracledb.OUT_FORMAT_OBJECT,
-      autoCommit: options.autoCommit ?? true,
-      // Return CLOB columns as plain strings instead of Lob objects
-      fetchAsString: [oracledb.CLOB],
-    });
-
-    if (rw.rewritten && execResult.outBinds) {
-      const row: Record<string, any> = {};
-      const outBinds = execResult.outBinds as any;
-      if (rw.positional) {
-        const onlyOut = outBinds.length === rw.cols.length;
-        rw.cols.forEach((c: string, i: number) => {
-          row[c.toUpperCase()] = outBinds[onlyOut ? i : rw.baseCount + i];
-        });
-      } else {
-        for (const c of rw.cols) {
-          row[c.toUpperCase()] = outBinds[c];
-        }
-      }
-      return [row];
-    }
-    return await resolveLobValues(execResult.rows || []);
-  });
-
-  return result || [];
-}
-
-// Query runner with single result
-export async function runQueryOne<T = Record<string, any>>(
-  sql: string,
-  binds: any[] = []
-): Promise<T | null> {
-  const rows: T[] = await runQuery(sql, binds);
-  return rows.length > 0 ? rows[0] : null;
-}

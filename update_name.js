@@ -1,12 +1,13 @@
-const oracledb = require("oracledb");
+require('dotenv').config();
+const oracledb = require('oracledb');
 
 async function main() {
   let connection;
   try {
     connection = await oracledb.getConnection({
-      user: "EBLOOD_APP",
-      password: "Eblood2026Secure",
-      connectString: "localhost:1521/EBLOODPDB"
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      connectString: process.env.DB_CONNECT_STRING
     });
     
     // Update user's first and last name
